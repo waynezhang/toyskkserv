@@ -1,0 +1,10 @@
+.{
+    .dictionary_directory = "./dict_cache",
+    .listen_addr = "127.0.0.1:1178",
+    .fallback_to_google = true,
+    .update_schedule = "monthly",
+    .dictionaries = .{
+        "url",
+        "path",
+    },
+}
