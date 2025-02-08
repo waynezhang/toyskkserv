@@ -3,12 +3,11 @@ const btree = @import("btree-zig");
 const c = @cImport({
     @cInclude("btree.h");
 });
+const log = @import("../log.zig");
 const utils = @import("utils.zig");
 const download = @import("../download.zig").download;
 const euc_jp = @import("../japanese/euc_jp.zig");
 const require = @import("protest").require;
-
-const log = std.log;
 
 pub const Encoding = enum {
     euc_jp,
@@ -77,8 +76,9 @@ pub const DictManager = struct {
         }
         const alloc = gpa.allocator();
 
+        log.info("Downloading missing files", .{});
         const result = try downloadFiles(alloc, urls, dictionary_path, false);
-        log.info("{d} downloaded, {d} skipped, {d} failed", .{ result.downloaded, result.skipped, result.failed });
+        log.info("Download done ({d}/{d} downloaded, {d} skipped)", .{ result.downloaded, urls.len, result.failed });
 
         const files = try utils.translateUrlsToFiles(self.allocator, urls);
         defer self.allocator.free(files);
@@ -144,6 +144,9 @@ pub const DictManager = struct {
     }
 
     fn loadFiles(self: *const @This(), filenames: []const []const u8, base_path: []const u8) !void {
+        log.info("Start loading dictionaries", .{});
+
+        var loaded: i16 = 0;
         for (filenames) |filename| {
             const path = if (std.mem.startsWith(u8, filename, "~/"))
                 try utils.expandTilde(self.allocator, filename)
@@ -155,27 +158,31 @@ pub const DictManager = struct {
             defer self.allocator.free(path);
 
             const full_path = std.fs.cwd().realpathAlloc(self.allocator, path) catch |err| {
-                log.info("Failed to get full path of {s} due to {}", .{ path, err });
+                log.err("Failed to get full path of {s} due to {}", .{ path, err });
                 continue;
             };
             defer self.allocator.free(full_path);
-            loadFile(self.allocator, self.tree, full_path);
+
+            loadFile(self.allocator, self.tree, full_path) catch |err| {
+                log.err("Failed to open file {s} due to {}", .{ filename, err });
+                continue;
+            };
+
+            loaded += 1;
         }
+        log.info("Loaded {d}/{d} dictionaries", .{ loaded, filenames.len });
     }
 };
 
-fn loadFile(allocator: std.mem.Allocator, tree: *btree.Btree(Entry, void), filename: []const u8) void {
-    const file = std.fs.cwd().openFile(filename, .{}) catch |err| {
-        log.info("Failed to open file {s}: {}", .{ filename, err });
-        return;
-    };
+fn loadFile(allocator: std.mem.Allocator, tree: *btree.Btree(Entry, void), filename: []const u8) !void {
+    const file = try std.fs.cwd().openFile(filename, .{});
     defer file.close();
 
     var buf_reader = std.io.bufferedReader(file.reader());
     var reader = buf_reader.reader();
 
     var encoding: Encoding = if (std.mem.endsWith(u8, filename, ".utf8")) blk: {
-        log.info("Prcoessing file: {s} in encode: {s}", .{ filename, "utf8" });
+        log.debug("Prcoessing file: {s} in encode: {s}", .{ utils.extractFilename(filename), "utf8" });
         break :blk .utf8;
     } else .undecided;
 
@@ -184,7 +191,7 @@ fn loadFile(allocator: std.mem.Allocator, tree: *btree.Btree(Entry, void), filen
     while (reader.readUntilDelimiterOrEof(&line_buf, '\n') catch "") |line| {
         if (encoding == .undecided) {
             encoding = utils.detectEncoding(line);
-            log.info("Prcoessing file: {s} in encode: {s}", .{ filename, @tagName(encoding) });
+            log.debug("Prcoessing file: {s} in encode: {s}", .{ utils.extractFilename(filename), @tagName(encoding) });
         }
         if (std.mem.startsWith(u8, line, ";;")) {
             continue;
@@ -259,7 +266,7 @@ fn processLine(allocator: std.mem.Allocator, tree: *btree.Btree(Entry, void), li
                 allocator.free(ent.candidate);
                 ent.candidate = concated;
             } else |err| {
-                log.info("Failed to concatCandidate {}", .{err});
+                log.err("Failed to concatCandidate {}", .{err});
             }
         }
     } else {

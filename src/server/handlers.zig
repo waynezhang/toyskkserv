@@ -1,8 +1,8 @@
 const std = @import("std");
 const mem = std.mem;
-const log = std.log;
 const resp = @import("response.zig");
 const ServerError = @import("server.zig").ServerError;
+const log = @import("../log.zig");
 const DictManager = @import("../skk/dict.zig").DictManager;
 const google_api = @import("google_api.zig");
 const config = @import("../config.zig");
@@ -63,9 +63,9 @@ pub const CandidateHandler = struct {
             return try resp.generateResponse(buffer, line, "");
         }
 
-        log.info("Fallback to google", .{});
+        log.debug("Fallback to google", .{});
         const fallback = google_api.transliterateRequest(self.allocator, line) catch |err| {
-            log.info("Failed to make request due to {}", .{err});
+            log.err("Failed to make request due to {}", .{err});
             return try resp.generateResponse(buffer, line, "");
         };
         defer self.allocator.free(fallback);
@@ -213,7 +213,7 @@ pub const CustomProtocolHandler = struct {
             return;
         }
 
-        log.info("Not implemented", .{});
+        log.err("Not implemented command {s}", .{req});
     }
 
     fn reload(self: CustomProtocolHandler) !void {

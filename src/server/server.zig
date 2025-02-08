@@ -1,11 +1,11 @@
 const std = @import("std");
 const mem = std.mem;
 const net = std.net;
-const log = std.log;
 const network = @import("network");
 const build_options = @import("build_options");
 
 const ip = @import("ip.zig");
+const log = @import("../log.zig");
 const Handler = @import("handlers.zig").Handler;
 const CandidateHandler = @import("handlers.zig").CandidateHandler;
 const CompletionHandler = @import("handlers.zig").CompletionHandler;
@@ -118,8 +118,11 @@ pub const Server = struct {
             _ = try network.waitForSocketEvent(&ss, null);
 
             if (ss.isReadyRead(server_socket)) {
-                log.info("New connection", .{});
                 const client_socket = try server_socket.accept();
+
+                const addr = try client_socket.getRemoteEndPoint();
+                log.info("New connection from {}", .{addr});
+
                 try arr.append(client_socket);
                 try ss.add(client_socket, socket_event);
             }
@@ -127,7 +130,9 @@ pub const Server = struct {
             for (arr.items, 0..) |socket, i| {
                 if (ss.isReadyRead(socket)) {
                     self.handleMessage(socket, &buf, &write_buf) catch {
-                        log.info("Connection disconnected", .{});
+                        const addr = try socket.getRemoteEndPoint();
+                        log.info("Connection disconnected from {}", .{addr});
+
                         socket.close();
                         ss.remove(socket);
                         _ = arr.swapRemove(i);
@@ -157,7 +162,7 @@ pub const Server = struct {
             try output.append('\n');
             _ = try socket.send(output.items);
         } else {
-            log.err("Invalid request: {s}", .{line});
+            log.info("Invalid request: {s}", .{line});
         }
     }
 };

@@ -3,7 +3,7 @@ const dict = @import("skk/dict.zig");
 const Server = @import("server/server.zig").Server;
 const config = @import("config.zig");
 const jdz_allocator = @import("jdz_allocator");
-const log = std.log;
+const log = @import("log.zig");
 
 pub fn serve() !void {
     var jdz = jdz_allocator.JdzAllocator(.{}).init();
@@ -29,13 +29,12 @@ pub fn serve() !void {
         allocator.destroy(cfg);
     }
     const fmt =
-        \\ Config loaded:
-        \\     Dictionary directory: {s}
-        \\     Listen Addr: {s}
-        \\     Fallback to Google: {}
-        \\     Dictionaries Count: {d}
+        \\Config loaded:
+        \\    Dictionary directory: {s}
+        \\    Listen Addr: {s}
+        \\    Fallback to Google: {}
+        \\    Dictionaries Count: {d}
     ;
-
     log.info(fmt, .{ cfg.dictionary_directory, cfg.listen_addr, cfg.fallback_to_google, cfg.dictionaries.len });
 
     const server = try allocator.create(Server);

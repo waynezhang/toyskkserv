@@ -24,7 +24,7 @@ pub fn transliterateRequest(allocator: std.mem.Allocator, key: []const u8) ![]co
 
     buffer.clearAndFree();
     const uri = try std.Uri.parse(url);
-    std.log.info("Request to google {}", .{uri});
+    std.log.debug("Request to google {}", .{uri});
 
     buffer.clearAndFree();
     try buffer.ensureTotalCapacity(1024 * 1024);

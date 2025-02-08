@@ -1,5 +1,4 @@
 const std = @import("std");
-const log = std.log;
 const http = std.http;
 const mem = std.mem;
 const require = @import("protest").require;
@@ -32,7 +31,7 @@ pub fn download(allocator: mem.Allocator, url: []const u8, dst: []const u8) !voi
 
     var buf_writer = std.io.bufferedWriter(file.writer());
 
-    const buffer = try allocator.alloc(u8, 1025 * 1024);
+    const buffer = try allocator.alloc(u8, 1024 * 1024);
     defer allocator.free(buffer);
 
     while (true) {
