@@ -5,7 +5,7 @@ const c = @cImport({
 });
 const log = @import("../log.zig");
 const utils = @import("utils.zig");
-const download = @import("../download.zig").download;
+const download = @import("download.zig").download;
 const euc_jp = @import("../japanese/euc_jp.zig");
 const require = @import("protest").require;
 
