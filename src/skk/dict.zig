@@ -39,8 +39,10 @@ const Entry = struct {
 pub const DictManager = struct {
     const BTreeType = btree.Btree(Entry, void);
 
-    tree: *btree.Btree(Entry, void) = undefined,
     allocator: std.mem.Allocator,
+    tree: *btree.Btree(Entry, void) = undefined,
+    mutex: std.Thread.Mutex = .undefined,
+    in_update: bool = false,
 
     pub fn init(allocator: std.mem.Allocator) !@This() {
         var manager: @This() = undefined;
@@ -48,6 +50,8 @@ pub const DictManager = struct {
 
         manager.tree = try allocator.create(BTreeType);
         manager.tree.* = BTreeType.init(0, Entry.compare, null);
+
+        manager.mutex = .{};
 
         return manager;
     }
@@ -58,7 +62,18 @@ pub const DictManager = struct {
         self.allocator.destroy(self.tree);
     }
 
-    pub fn loadUrls(self: *const @This(), urls: []const []const u8, dictionary_path: []const u8) !void {
+    pub fn reloadUrls(self: *@This(), urls: []const []const u8, dictionary_path: []const u8) !void {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+
+        self.in_update = true;
+        defer self.in_update = false;
+
+        clearBtree(self.allocator, self.tree);
+        try self.loadUrls(urls, dictionary_path);
+    }
+
+    pub fn loadUrls(self: *@This(), urls: []const []const u8, dictionary_path: []const u8) !void {
         std.fs.cwd().makeDir(dictionary_path) catch |err| switch (err) {
             error.PathAlreadyExists => {},
             else => {
@@ -75,6 +90,10 @@ pub const DictManager = struct {
     }
 
     pub fn findCandidate(self: *const @This(), key: []const u8) []const u8 {
+        if (self.in_update) {
+            return "";
+        }
+
         const found: Entry = .{
             .key = key,
             .candidate = "",
@@ -86,6 +105,10 @@ pub const DictManager = struct {
     }
 
     pub fn findCompletion(self: *const @This(), alloc: std.mem.Allocator, key: []const u8) ![]const u8 {
+        if (self.in_update) {
+            return "";
+        }
+
         const Ctx = struct {
             pivo_key: []const u8,
             arr: *std.ArrayList(u8),
@@ -206,6 +229,13 @@ test "DictManager" {
     const comp = try mgr.findCompletion(alloc, "smi");
     defer alloc.free(comp);
     try require.equal("/smile/smile_cat/smiley/smiley_cat/smiling_face_with_tear/smiling_face_with_three_hearts/smiling_imp/smirk/smirk_cat/", comp);
+
+    // reload
+    try mgr.reloadUrls(&[_][]const u8{}, path);
+    try require.equal("", mgr.findCandidate("smile"));
+
+    try mgr.reloadUrls(&[_][]const u8{url}, path);
+    try require.equal("/😄/", mgr.findCandidate("smile"));
 }
 
 fn processLine(allocator: std.mem.Allocator, tree: *btree.Btree(Entry, void), line: []const u8) void {

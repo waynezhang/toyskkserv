@@ -43,6 +43,10 @@
             .url = "https://github.com/Durobot/zon_get_fields/archive/refs/tags/v0.1-beta.tar.gz",
             .hash = "1220c231f84b21e03244a1459fd7c344dd699795506c5ba0c56f3f2c50ffc6fccb1b",
         },
+        .jdz_allocator = .{
+            .url = "git+https://github.com/joadnacer/jdz_allocator#fefa1851875adfcb0e2bf6534c9d04e304be093f",
+            .hash = "12205cc579d7cd5d7419014d984c23fc0a410decc43176d87a4545189d7f1f69622d",
+        },
     },
     .paths = .{
         "build.zig",

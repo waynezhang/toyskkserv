@@ -5,13 +5,16 @@ const resp = @import("response.zig");
 const ServerError = @import("server.zig").ServerError;
 const DictManager = @import("../skk/dict.zig").DictManager;
 const google_api = @import("google_api.zig");
+const config = @import("../config.zig");
+
 const require = @import("protest").require;
 
 pub const Handler = union(enum) {
-    disconnectHandler: *DisconnectHandler,
-    candidateHandler: *CandidateHandler,
-    rawStringHandler: *RawStringHandler,
-    completionHandler: *CompletionHandler,
+    disconnect_handler: *DisconnectHandler,
+    candidate_handler: *CandidateHandler,
+    raw_string_handler: *RawStringHandler,
+    completion_handler: *CompletionHandler,
+    custom_protocol_handler: *CustomProtocolHandler,
 
     pub fn handle(self: Handler, buffer: *std.ArrayList(u8), line: []const u8) anyerror!void {
         switch (self) {
@@ -56,14 +59,14 @@ pub const CandidateHandler = struct {
         if (cdd.len > 0) {
             return try resp.generateResponse(buffer, line, cdd);
         }
-        log.info("Fallback to google", .{});
-
         if (!self.use_google) {
             return try resp.generateResponse(buffer, line, "");
         }
+
+        log.info("Fallback to google", .{});
         const fallback = google_api.transliterateRequest(self.allocator, line) catch |err| {
             log.info("Failed to make request due to {}", .{err});
-            return;
+            return try resp.generateResponse(buffer, line, "");
         };
         defer self.allocator.free(fallback);
         return try resp.generateResponse(buffer, line, fallback);
@@ -95,11 +98,15 @@ test "CandidateHandler" {
 
     arr.clearAndFree();
     try h.handle(&arr, "smilesmile");
-    try require.equal("", arr.items);
+    try require.equal("4smilesmile ", arr.items);
 
     arr.clearAndFree();
     try h.handle(&arr, "=1+1");
-    try require.equal("1/2/2=1+1/＝１＋１/=1+1/", arr.items);
+    try require.equal("1/2/2=1+1/＝１＋１/", arr.items);
+
+    arr.clearAndFree();
+    try h.handle(&arr, "aaaaaaaaaaa");
+    try require.equal("4aaaaaaaaaaa ", arr.items);
 
     h.use_google = false;
     arr.clearAndFree();
@@ -183,4 +190,40 @@ test "RawStringHandler" {
 
     try h.handle(&arr, "");
     try require.equal("a string", arr.items);
+}
+
+pub const CustomProtocolHandler = struct {
+    allocator: mem.Allocator,
+    dict_mgr: *DictManager,
+
+    pub fn init(alloc: mem.Allocator, dict_mgr: *DictManager) CustomProtocolHandler {
+        return .{
+            .allocator = alloc,
+            .dict_mgr = dict_mgr,
+        };
+    }
+
+    fn handle(self: CustomProtocolHandler, _: *std.ArrayList(u8), req: []const u8) !void {
+        if (mem.eql(u8, req, "reload")) {
+            log.info("Reload", .{});
+
+            self.reload() catch |err| {
+                log.err("Failed to reload dictionaries due to {}", .{err});
+            };
+            return;
+        }
+
+        log.info("Not implemented", .{});
+    }
+
+    fn reload(self: CustomProtocolHandler) !void {
+        const cfg = try config.loadConfig(self.allocator);
+        defer cfg.deinit(self.allocator);
+
+        try reloadDicts(self.dict_mgr, cfg.dictionaries, cfg.dictionary_directory);
+    }
+};
+
+fn reloadDicts(dict_mgr: *DictManager, dicts: []const []const u8, dictionary_path: []const u8) !void {
+    try dict_mgr.reloadUrls(dicts, dictionary_path);
 }

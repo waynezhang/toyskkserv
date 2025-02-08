@@ -1,9 +1,5 @@
 const std = @import("std");
-
-const RequestError = error{
-    HttpError,
-    NotFound,
-};
+const require = @import("protest").require;
 
 /// No need to free memory of result
 pub fn transliterateRequest(allocator: std.mem.Allocator, key: []const u8) ![]const u8 {
@@ -43,7 +39,7 @@ pub fn transliterateRequest(allocator: std.mem.Allocator, key: []const u8) ![]co
     try req.wait();
 
     if (req.response.status != .ok) {
-        return RequestError.HttpError;
+        return error.NotFound;
     }
 
     buffer.clearAndFree();
@@ -57,56 +53,65 @@ fn parseResponse(allocator: std.mem.Allocator, resp: []const u8, key: []const u8
     defer parsed.deinit();
 
     if (parsed.value.len == 0) {
-        return RequestError.NotFound;
+        return error.NotFound;
     }
 
     const first = parsed.value[0];
     const nested = switch (first) {
         .array => |v| v,
-        else => return RequestError.NotFound,
+        else => return error.NotFound,
     };
 
     if (nested.items.len != 2) {
-        return RequestError.NotFound;
+        return error.NotFound;
     }
 
     const k = switch (nested.items[0]) {
         .string => |v| v,
-        else => return RequestError.NotFound,
+        else => return error.NotFound,
     };
     if (!std.mem.eql(u8, k, key)) {
-        return RequestError.NotFound;
+        return error.NotFound;
     }
 
     const array = switch (nested.items[1]) {
         .array => |v| v,
-        else => return RequestError.NotFound,
+        else => return error.NotFound,
     };
     if (array.items.len == 0) {
-        return RequestError.NotFound;
+        return error.NotFound;
     }
 
     var result_arr = std.ArrayList(u8).init(allocator);
     defer result_arr.deinit();
 
-    try result_arr.append('/');
     for (array.items) |item| {
         const s = switch (item) {
             .string => |v| v,
-            else => return RequestError.NotFound,
+            else => return error.NotFound,
         };
+        // skip the key itself
+        if (std.mem.eql(u8, key, s)) {
+            continue;
+        }
+        try result_arr.append('/');
         try result_arr.appendSlice(s);
+    }
+    if (result_arr.items.len > 0) {
         try result_arr.append('/');
     }
     return result_arr.toOwnedSlice();
 }
 
-const require = @import("protest").require;
-
 test "test 1+1" {
     const resp = try transliterateRequest(std.testing.allocator, "=1+1");
     defer std.testing.allocator.free(resp);
-    try require.equal("/2/2=1+1/＝１＋１/=1+1/", resp);
+    try require.equal("/2/2=1+1/＝１＋１/", resp);
+}
+
+test "test empty" {
+    const err = transliterateRequest(std.testing.allocator, "aaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+    try require.equalError(error.NotFound, err);
 }
 
 test "test parseResponse =1+1" {
@@ -126,7 +131,7 @@ test "test parseResponse =1+1" {
 
     const resp = try parseResponse(std.testing.allocator, json_str, "=1+1");
     defer std.testing.allocator.free(resp);
-    try require.equal("/2/2=1+1/＝１＋１/=1+1/", resp);
+    try require.equal("/2/2=1+1/＝１＋１/", resp);
 }
 
 test "test parseResponse unmatch 1" {

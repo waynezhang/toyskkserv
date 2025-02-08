@@ -2,7 +2,7 @@ const std = @import("std");
 const zgf = @import("zon_get_fields");
 const require = @import("protest").require;
 
-const Config = struct {
+pub const Config = struct {
     dictionary_directory: []const u8,
     listen_addr: []const u8,
     fallback_to_google: bool = false,
@@ -53,11 +53,16 @@ const Config = struct {
     }
 };
 
-pub const ConfigError = error{
-    NoConfigFound,
-};
+pub fn loadConfig(alloc: std.mem.Allocator) !*Config {
+    const config_files = [_][]const u8{
+        "./toyskkserv.zon",
+        "~/.config/toyskkserv.zon",
+    };
 
-pub fn parseConfig(allocator: std.mem.Allocator, files: []const []const u8) !*Config {
+    return try parseConfig(alloc, &config_files);
+}
+
+fn parseConfig(allocator: std.mem.Allocator, files: []const []const u8) !*Config {
     for (files) |file| {
         const path = std.fs.realpathAlloc(allocator, file) catch {
             continue;
@@ -76,7 +81,7 @@ pub fn parseConfig(allocator: std.mem.Allocator, files: []const []const u8) !*Co
         return cfg;
     }
 
-    return ConfigError.NoConfigFound;
+    return error.NoConfigFound;
 }
 
 test "config" {

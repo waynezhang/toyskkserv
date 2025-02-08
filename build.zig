@@ -27,6 +27,9 @@ pub fn build(b: *std.Build) void {
             .name = "percent_encoding",
         },
         .{
+            .name = "jdz_allocator",
+        },
+        .{
             .name = "btree-zig",
             .module = "btree_c_zig",
             .link = "btree-zig",

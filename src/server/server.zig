@@ -11,6 +11,7 @@ const CandidateHandler = @import("handlers.zig").CandidateHandler;
 const CompletionHandler = @import("handlers.zig").CompletionHandler;
 const DisconnectHandler = @import("handlers.zig").DisconnectHandler;
 const RawStringHandler = @import("handlers.zig").RawStringHandler;
+const CustomProtocolHandler = @import("handlers.zig").CustomProtocolHandler;
 
 pub const ServerError = error{
     Disconnect,
@@ -40,27 +41,32 @@ pub const Server = struct {
         handlers.* = std.AutoArrayHashMap(u8, Handler).init(allocator);
         {
             const handler = try allocator.create(DisconnectHandler);
-            try handlers.put('0', Handler{ .disconnectHandler = handler });
+            try handlers.put('0', Handler{ .disconnect_handler = handler });
         }
         {
             const handler = try allocator.create(CandidateHandler);
             handler.* = CandidateHandler.init(allocator, dict_mgr, context.use_google);
-            try handlers.put('1', Handler{ .candidateHandler = handler });
+            try handlers.put('1', Handler{ .candidate_handler = handler });
         }
         {
             const handler = try allocator.create(RawStringHandler);
             handler.* = try RawStringHandler.init(allocator, context.version);
-            try handlers.put('2', Handler{ .rawStringHandler = handler });
+            try handlers.put('2', Handler{ .raw_string_handler = handler });
         }
         {
             const handler = try allocator.create(RawStringHandler);
             handler.* = try RawStringHandler.init(allocator, context.listen_addr);
-            try handlers.put('3', Handler{ .rawStringHandler = handler });
+            try handlers.put('3', Handler{ .raw_string_handler = handler });
         }
         {
             const handler = try allocator.create(CompletionHandler);
             handler.* = CompletionHandler.init(allocator, dict_mgr);
-            try handlers.put('4', Handler{ .completionHandler = handler });
+            try handlers.put('4', Handler{ .completion_handler = handler });
+        }
+        {
+            const handler = try allocator.create(CustomProtocolHandler);
+            handler.* = CustomProtocolHandler.init(allocator, dict_mgr);
+            try handlers.put('c', Handler{ .custom_protocol_handler = handler });
         }
 
         return .{
