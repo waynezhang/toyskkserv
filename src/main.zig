@@ -1,7 +1,7 @@
 const std = @import("std");
 const cli = @import("zig-cli");
 const builtin = @import("builtin");
-const ver = @import("version_cmd.zig");
+const ver = @import("version.zig");
 const server = @import("server_cmd.zig");
 
 pub fn main() !void {
@@ -21,7 +21,7 @@ pub fn main() !void {
             .{
                 .name = "version",
                 .target = cli.CommandTarget{
-                    .action = cli.CommandAction{ .exec = ver.show_version },
+                    .action = cli.CommandAction{ .exec = ver.showVersion },
                 },
             },
         },

@@ -46,7 +46,6 @@ pub fn serve() !void {
     server.* = try Server.init(allocator, .{
         .dictionary_directory = cfg.dictionary_directory,
         .listen_addr = cfg.listen_addr,
-        .version = "toyskkserv v0.0.1",
         .use_google = cfg.fallback_to_google,
     });
 

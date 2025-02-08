@@ -3,16 +3,19 @@ const mem = std.mem;
 const net = std.net;
 const log = std.log;
 const network = @import("network");
+const build_options = @import("build_options");
 
 const ip = @import("ip.zig");
-const euc_jp = @import("../japanese/euc_jp.zig");
-const DictManager = @import("../skk/dict.zig").DictManager;
 const Handler = @import("handlers.zig").Handler;
 const CandidateHandler = @import("handlers.zig").CandidateHandler;
 const CompletionHandler = @import("handlers.zig").CompletionHandler;
 const DisconnectHandler = @import("handlers.zig").DisconnectHandler;
 const RawStringHandler = @import("handlers.zig").RawStringHandler;
 const CustomProtocolHandler = @import("handlers.zig").CustomProtocolHandler;
+
+const version = @import("../version.zig");
+const euc_jp = @import("../japanese/euc_jp.zig");
+const DictManager = @import("../skk/dict.zig").DictManager;
 
 pub const ServerError = error{
     Disconnect,
@@ -21,7 +24,6 @@ pub const ServerError = error{
 const Context = struct {
     listen_addr: []const u8,
     dictionary_directory: []const u8,
-    version: []const u8,
     use_google: bool,
 };
 
@@ -51,7 +53,7 @@ pub const Server = struct {
         }
         {
             const handler = try allocator.create(RawStringHandler);
-            handler.* = try RawStringHandler.init(allocator, context.version);
+            handler.* = try RawStringHandler.init(allocator, version.FullDescription);
             try handlers.put('2', Handler{ .raw_string_handler = handler });
         }
         {
