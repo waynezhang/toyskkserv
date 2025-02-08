@@ -2,6 +2,7 @@ const std = @import("std");
 const mem = std.mem;
 const net = std.net;
 const log = std.log;
+const network = @import("network");
 
 const ip = @import("ip.zig");
 const euc_jp = @import("../japanese/euc_jp.zig");
@@ -83,59 +84,76 @@ pub const Server = struct {
     }
 
     pub fn serve(self: *Self, dicts: []const []const u8) !void {
-        const address = try ip.parseAddrPort(self.listen_addr);
-
-        var server = try address.listen(.{ .reuse_port = true });
-        defer server.deinit();
-
         try self.dict_mgr.loadUrls(dicts, self.dictionary_directory);
 
-        log.info("Listening to 127.0.0.1:1178", .{});
+        try network.init();
+        var server_socket = try network.Socket.create(network.AddressFamily.ipv4, network.Protocol.tcp);
+        const endpoint = try network.EndPoint.parse(self.listen_addr);
+        try server_socket.enablePortReuse(true);
+
+        try server_socket.bind(endpoint);
+        try server_socket.listen();
+
+        var ss = try network.SocketSet.init(self.allocator);
+
+        const socket_event: network.SocketEvent = .{
+            .read = true,
+            .write = false,
+        };
+        try ss.add(server_socket, socket_event);
+
+        var arr = std.ArrayList(network.Socket).init(self.allocator);
+        defer {
+            arr.deinit();
+        }
+
+        log.info("Listening at {s}", .{self.listen_addr});
+
+        var buf = [_]u8{0} ** 4096;
+        var write_buf = std.ArrayList(u8).init(self.allocator);
 
         while (true) {
-            const conn = try server.accept();
-            const thread = try std.Thread.spawn(.{}, handleConnection, .{ self, conn });
-            thread.detach();
+            _ = try network.waitForSocketEvent(&ss, null);
+
+            if (ss.isReadyRead(server_socket)) {
+                log.info("New connection", .{});
+                const client_socket = try server_socket.accept();
+                try arr.append(client_socket);
+                try ss.add(client_socket, socket_event);
+            }
+
+            for (arr.items, 0..) |socket, i| {
+                if (ss.isReadyRead(socket)) {
+                    self.handleMessage(socket, &buf, &write_buf) catch {
+                        log.info("Connection disconnected", .{});
+                        ss.remove(socket);
+                        _ = arr.swapRemove(i);
+                    };
+                }
+            }
         }
     }
 
-    fn handleConnection(self: *Self, conn: std.net.Server.Connection) !void {
-        defer conn.stream.close();
-        log.info("New connection", .{});
+    fn handleMessage(self: *Self, socket: network.Socket, buf: []u8, output: *std.ArrayList(u8)) !void {
+        output.clearAndFree();
 
-        var request_buf: [1024]u8 = undefined;
-        var response_buf = std.ArrayList(u8).init(self.allocator);
-        defer response_buf.deinit();
+        const read = try socket.receive(buf);
+        if (read == 0) {
+            return error.ConnectionDisconnected;
+        }
 
-        while (true) {
-            const len = try conn.stream.read(&request_buf);
-            if (len == 0) {
-                log.info("Connection disconnected", .{});
-                break;
-            }
-            const line = try euc_jp.convertEucJpToUtf8(self.allocator, mem.trim(u8, request_buf[0..len], " \n"));
-            defer self.allocator.free(line);
+        const line = try euc_jp.convertEucJpToUtf8(self.allocator, mem.trim(u8, buf[0..read], " \n"));
 
-            log.info("Request: {s}", .{line});
-            if (line.len == 0) {
-                continue;
-            }
+        log.info("Request: {s}", .{line});
+        if (line.len == 0) {
+            return;
+        }
 
-            if (self.handlers.get(line[0])) |h| {
-                if (h.handle(&response_buf, line[1..])) {
-                    defer response_buf.clearAndFree();
-
-                    try response_buf.append('\n');
-                    try conn.stream.writeAll(response_buf.items);
-                } else |err| {
-                    switch (err) {
-                        ServerError.Disconnect => {
-                            return;
-                        },
-                        else => {},
-                    }
-                }
-            } else {
+        if (self.handlers.get(line[0])) |h| {
+            if (h.handle(output, line[1..])) {
+                try output.append('\n');
+                _ = try socket.send(output.items);
+            } else |_| {
                 log.err("Invalid request: {s}", .{line});
             }
         }

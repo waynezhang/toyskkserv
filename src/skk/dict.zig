@@ -37,21 +37,15 @@ const Entry = struct {
 };
 
 pub const DictManager = struct {
-    const BTreeType = btree.Btree(Entry, void);
-
     allocator: std.mem.Allocator,
     tree: *btree.Btree(Entry, void) = undefined,
-    mutex: std.Thread.Mutex = .undefined,
-    in_update: bool = false,
 
     pub fn init(allocator: std.mem.Allocator) !@This() {
         var manager: @This() = undefined;
         manager.allocator = allocator;
 
-        manager.tree = try allocator.create(BTreeType);
-        manager.tree.* = BTreeType.init(0, Entry.compare, null);
-
-        manager.mutex = .{};
+        manager.tree = try allocator.create(btree.Btree(Entry, void));
+        manager.tree.* = btree.Btree(Entry, void).init(0, Entry.compare, null);
 
         return manager;
     }
@@ -63,12 +57,6 @@ pub const DictManager = struct {
     }
 
     pub fn reloadUrls(self: *@This(), urls: []const []const u8, dictionary_path: []const u8) !void {
-        self.mutex.lock();
-        defer self.mutex.unlock();
-
-        self.in_update = true;
-        defer self.in_update = false;
-
         clearBtree(self.allocator, self.tree);
         try self.loadUrls(urls, dictionary_path);
     }
@@ -90,10 +78,6 @@ pub const DictManager = struct {
     }
 
     pub fn findCandidate(self: *const @This(), key: []const u8) []const u8 {
-        if (self.in_update) {
-            return "";
-        }
-
         const found: Entry = .{
             .key = key,
             .candidate = "",
@@ -105,10 +89,6 @@ pub const DictManager = struct {
     }
 
     pub fn findCompletion(self: *const @This(), alloc: std.mem.Allocator, key: []const u8) ![]const u8 {
-        if (self.in_update) {
-            return "";
-        }
-
         const Ctx = struct {
             pivo_key: []const u8,
             arr: *std.ArrayList(u8),

@@ -47,6 +47,10 @@
             .url = "git+https://github.com/joadnacer/jdz_allocator#fefa1851875adfcb0e2bf6534c9d04e304be093f",
             .hash = "12205cc579d7cd5d7419014d984c23fc0a410decc43176d87a4545189d7f1f69622d",
         },
+        .network = .{
+            .url = "git+https://github.com/ikskuh/zig-network#8db1aa2f5efdf1e2ff6dd5f5f8efe1b4f44ff978",
+            .hash = "12203ae90636504172540e6e0feb2881affd82768af6f0a379cb84a3f70b53705fe5",
+        },
     },
     .paths = .{
         "build.zig",

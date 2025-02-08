@@ -30,6 +30,10 @@ pub fn build(b: *std.Build) void {
             .name = "jdz_allocator",
         },
         .{
+            .name = "network",
+            .module = "network",
+        },
+        .{
             .name = "btree-zig",
             .module = "btree_c_zig",
             .link = "btree-zig",

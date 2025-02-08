@@ -24,6 +24,10 @@ pub fn serve() !void {
             return;
         },
     };
+    defer {
+        cfg.deinit(allocator);
+        allocator.destroy(cfg);
+    }
     const fmt =
         \\ Config loaded:
         \\     Dictionary directory: {s}
@@ -33,9 +37,12 @@ pub fn serve() !void {
     ;
 
     log.info(fmt, .{ cfg.dictionary_directory, cfg.listen_addr, cfg.fallback_to_google, cfg.dictionaries.len });
-    defer cfg.deinit(allocator);
 
     const server = try allocator.create(Server);
+    defer {
+        server.deinit();
+        allocator.destroy(server);
+    }
     server.* = try Server.init(allocator, .{
         .dictionary_directory = cfg.dictionary_directory,
         .listen_addr = cfg.listen_addr,
