@@ -68,7 +68,16 @@ pub const DictManager = struct {
                 return err;
             },
         };
-        const result = try downloadFiles(self.allocator, urls, dictionary_path, false);
+
+        // jdz allocator will crash
+        var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+        defer {
+            const deinit_status = gpa.deinit();
+            if (deinit_status == .leak) unreachable;
+        }
+        const alloc = gpa.allocator();
+
+        const result = try downloadFiles(alloc, urls, dictionary_path, false);
         log.info("{d} downloaded, {d} skipped, {d} failed", .{ result.downloaded, result.skipped, result.failed });
 
         const files = try utils.translateUrlsToFiles(self.allocator, urls);
