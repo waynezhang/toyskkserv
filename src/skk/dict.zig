@@ -78,6 +78,9 @@ pub const DictManager = struct {
     }
 
     pub fn findCandidate(self: *const @This(), key: []const u8) []const u8 {
+        if (key.len == 0) {
+            return "";
+        }
         const found: Entry = .{
             .key = key,
             .candidate = "",
@@ -89,6 +92,9 @@ pub const DictManager = struct {
     }
 
     pub fn findCompletion(self: *const @This(), alloc: std.mem.Allocator, key: []const u8) ![]const u8 {
+        if (key.len == 0) {
+            return alloc.dupe(u8, key);
+        }
         const Ctx = struct {
             pivo_key: []const u8,
             arr: *std.ArrayList(u8),
@@ -203,12 +209,20 @@ test "DictManager" {
         url,
     }, path);
 
+    try require.equal("", mgr.findCandidate(""));
     try require.equal("/😄/", mgr.findCandidate("smile"));
     try require.equal("", mgr.findCandidate("smilesmile"));
 
-    const comp = try mgr.findCompletion(alloc, "smi");
-    defer alloc.free(comp);
-    try require.equal("/smile/smile_cat/smiley/smiley_cat/smiling_face_with_tear/smiling_face_with_three_hearts/smiling_imp/smirk/smirk_cat/", comp);
+    {
+        const comp = try mgr.findCompletion(alloc, "");
+        defer alloc.free(comp);
+        try require.equal("", comp);
+    }
+    {
+        const comp = try mgr.findCompletion(alloc, "smi");
+        defer alloc.free(comp);
+        try require.equal("/smile/smile_cat/smiley/smiley_cat/smiling_face_with_tear/smiling_face_with_three_hearts/smiling_imp/smirk/smirk_cat/", comp);
+    }
 
     // reload
     try mgr.reloadUrls(&[_][]const u8{}, path);

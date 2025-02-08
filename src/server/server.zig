@@ -126,6 +126,7 @@ pub const Server = struct {
                 if (ss.isReadyRead(socket)) {
                     self.handleMessage(socket, &buf, &write_buf) catch {
                         log.info("Connection disconnected", .{});
+                        socket.close();
                         ss.remove(socket);
                         _ = arr.swapRemove(i);
                     };
@@ -150,12 +151,11 @@ pub const Server = struct {
         }
 
         if (self.handlers.get(line[0])) |h| {
-            if (h.handle(output, line[1..])) {
-                try output.append('\n');
-                _ = try socket.send(output.items);
-            } else |_| {
-                log.err("Invalid request: {s}", .{line});
-            }
+            try (h.handle(output, line[1..]));
+            try output.append('\n');
+            _ = try socket.send(output.items);
+        } else {
+            log.err("Invalid request: {s}", .{line});
         }
     }
 };
