@@ -4,6 +4,7 @@ const builtin = @import("builtin");
 const ver = @import("version.zig");
 const update = @import("cmd/update_cmd.zig");
 const server = @import("cmd/server_cmd.zig");
+const reload = @import("cmd/reload.zig");
 
 var verbose: bool = false;
 
@@ -20,6 +21,9 @@ pub fn main() !void {
                 .subcommands = &[_]cli.Command{
                     .{
                         .name = "serve",
+                        .description = .{
+                            .one_line = "Start skkserv",
+                        },
                         .target = cli.CommandTarget{
                             .action = cli.CommandAction{ .exec = serve },
                         },
@@ -34,12 +38,27 @@ pub fn main() !void {
                     },
                     .{
                         .name = "update",
+                        .description = .{
+                            .one_line = "Force re-download all dictionaires",
+                        },
                         .target = cli.CommandTarget{
                             .action = cli.CommandAction{ .exec = update.updateDicts },
                         },
                     },
                     .{
+                        .name = "reload",
+                        .description = .{
+                            .one_line = "Tell skkserv to reload dictionaries",
+                        },
+                        .target = cli.CommandTarget{
+                            .action = cli.CommandAction{ .exec = reload.reload },
+                        },
+                    },
+                    .{
                         .name = "version",
+                        .description = .{
+                            .one_line = "Show skkserv version",
+                        },
                         .target = cli.CommandTarget{
                             .action = cli.CommandAction{ .exec = ver.showVersion },
                         },
