@@ -1,8 +1,5 @@
 const std = @import("std");
 const btree = @import("btree-zig");
-const c = @cImport({
-    @cInclude("btree.h");
-});
 const log = @import("../log.zig");
 const utils = @import("utils.zig");
 const file = @import("../file.zig");
