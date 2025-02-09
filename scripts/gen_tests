@@ -1,0 +1,15 @@
+#!/usr/bin/env sh
+
+FILE="./src/test.zig"
+
+FILES=$(rg -l "test " ./src --sort=path | grep -v test.zig | sed 's/.*src\/\(.*\)/    _ = @import("\1");/g')
+
+cat << EOF > $FILE
+comptime {
+$FILES
+}
+
+test {
+    @import("std").testing.refAllDecls(@This());
+}
+EOF

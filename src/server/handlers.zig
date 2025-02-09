@@ -76,37 +76,28 @@ pub const CandidateHandler = struct {
 test "CandidateHandler" {
     const alloc = std.testing.allocator;
 
-    var tmp = std.testing.tmpDir(.{});
-    defer tmp.cleanup();
-    const path = try tmp.dir.realpathAlloc(alloc, ".");
-    defer alloc.free(path);
-
     var mgr = try DictManager.init(alloc);
     defer mgr.deinit();
 
     try mgr.loadUrls(&[_][]const u8{
-        "https://github.com/uasi/skk-emoji-jisyo/raw/refs/heads/master/SKK-JISYO.emoji.utf8",
-    }, path);
+        "testdata/jisyo.utf8",
+    }, "");
 
     var arr = std.ArrayList(u8).init(alloc);
     defer arr.deinit();
 
     var h = CandidateHandler.init(alloc, &mgr, true);
 
-    try h.handle(&arr, "smile");
-    try require.equal("1/😄/", arr.items);
+    try h.handle(&arr, "1024");
+    try require.equal("1/キロ/", arr.items);
 
     arr.clearAndFree();
-    try h.handle(&arr, "smilesmile");
-    try require.equal("4smilesmile ", arr.items);
+    try h.handle(&arr, "smile");
+    try require.equal("4smile ", arr.items);
 
     arr.clearAndFree();
     try h.handle(&arr, "=1+1");
     try require.equal("1/2/2=1+1/＝１＋１/", arr.items);
-
-    arr.clearAndFree();
-    try h.handle(&arr, "aaaaaaaaaaa");
-    try require.equal("4aaaaaaaaaaa ", arr.items);
 
     h.use_google = false;
     arr.clearAndFree();
@@ -136,29 +127,24 @@ pub const CompletionHandler = struct {
 test "CompletionHandler" {
     const alloc = std.testing.allocator;
 
-    var tmp = std.testing.tmpDir(.{});
-    defer tmp.cleanup();
-    const path = try tmp.dir.realpathAlloc(alloc, ".");
-    defer alloc.free(path);
-
     var mgr = try DictManager.init(alloc);
     defer mgr.deinit();
 
     try mgr.loadUrls(&[_][]const u8{
-        "https://github.com/uasi/skk-emoji-jisyo/raw/refs/heads/master/SKK-JISYO.emoji.utf8",
-    }, path);
+        "testdata/jisyo.utf8",
+    }, "");
 
     var arr = std.ArrayList(u8).init(alloc);
     defer arr.deinit();
 
     var h = CompletionHandler.init(alloc, &mgr);
 
-    try h.handle(&arr, "smi");
-    try require.equal("1/smile/smile_cat/smiley/smiley_cat/smiling_face_with_tear/smiling_face_with_three_hearts/smiling_imp/smirk/smirk_cat/", arr.items);
+    try h.handle(&arr, "1");
+    try require.equal("1/1024/1seg/", arr.items);
 
     arr.clearAndFree();
-    try h.handle(&arr, "smilesmile");
-    try require.equal("4smilesmile ", arr.items);
+    try h.handle(&arr, "smile");
+    try require.equal("4smile ", arr.items);
 }
 
 pub const RawStringHandler = struct {
