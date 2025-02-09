@@ -1,3 +1,10 @@
+## v0.0.3 (2025-02-09)
+
+### Fix
+
+- config file is not found ([bef6d29](https://github.com/waynezhang/toyskkserv/commit/bef6d29a097c5c5f1794a7f89e7a3b397e77ff08))
+
+
 ## v0.0.2 (2025-02-09)
 
 ### New feature
