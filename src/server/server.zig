@@ -130,9 +130,7 @@ pub const Server = struct {
             for (arr.items, 0..) |socket, i| {
                 if (ss.isReadyRead(socket)) {
                     self.handleMessage(socket, &buf, &write_buf) catch {
-                        const addr = try socket.getRemoteEndPoint();
-                        log.info("Connection disconnected from {}", .{addr});
-
+                        log.info("Connection disconnected", .{});
                         socket.close();
                         ss.remove(socket);
                         _ = arr.swapRemove(i);
