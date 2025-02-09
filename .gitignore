@@ -14,3 +14,6 @@ dict_cache/
 toyskkserv.zon
 
 # End of https://www.toptal.com/developers/gitignore/api/zig
+# Added by goreleaser init:
+dist/
+.intentionally-empty-file.o
