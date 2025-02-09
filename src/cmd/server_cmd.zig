@@ -1,10 +1,10 @@
 const std = @import("std");
-const dict = @import("skk/dict.zig");
-const Server = @import("server/server.zig").Server;
-const config = @import("config.zig");
+const dict = @import("../skk/dict.zig");
+const Server = @import("../server/server.zig").Server;
+const config = @import("../config.zig");
 const jdz_allocator = @import("jdz_allocator");
-const log = @import("log.zig");
-const download = @import("http/download.zig");
+const log = @import("../log.zig");
+const download = @import("../http/download.zig");
 
 pub fn serve() !void {
     var jdz = jdz_allocator.JdzAllocator(.{}).init();

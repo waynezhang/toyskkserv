@@ -1,6 +1,6 @@
 const std = @import("std");
-const config = @import("config.zig");
-const download = @import("http/download.zig");
+const config = @import("../config.zig");
+const download = @import("../http/download.zig");
 const log = std.log;
 
 pub fn updateDicts() !void {
