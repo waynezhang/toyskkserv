@@ -17,10 +17,6 @@ const version = @import("../version.zig");
 const euc_jp = @import("../japanese/euc_jp.zig");
 const DictManager = @import("../skk/dict.zig").DictManager;
 
-pub const ServerError = error{
-    Disconnect,
-};
-
 const Context = struct {
     listen_addr: []const u8,
     dictionary_directory: []const u8,
