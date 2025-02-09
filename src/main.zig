@@ -2,6 +2,7 @@ const std = @import("std");
 const cli = @import("zig-cli");
 const builtin = @import("builtin");
 const ver = @import("version.zig");
+const update = @import("update_cmd.zig");
 const server = @import("server_cmd.zig");
 
 var verbose: bool = false;
@@ -29,6 +30,12 @@ pub fn main() !void {
                                 .help = "Enable more output",
                                 .value_ref = r.mkRef(&verbose),
                             },
+                        },
+                    },
+                    .{
+                        .name = "update",
+                        .target = cli.CommandTarget{
+                            .action = cli.CommandAction{ .exec = update.updateDicts },
                         },
                     },
                     .{
