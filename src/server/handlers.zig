@@ -1,7 +1,6 @@
 const std = @import("std");
 const mem = std.mem;
 const resp = @import("response.zig");
-const ServerError = @import("server.zig").ServerError;
 const log = @import("../log.zig");
 const DictManager = @import("../skk/dict.zig").DictManager;
 const google_api = @import("google_api.zig");
@@ -27,7 +26,7 @@ pub const Handler = union(enum) {
 
 pub const DisconnectHandler = struct {
     fn handle(_: DisconnectHandler, _: *std.ArrayList(u8), _: []const u8) !void {
-        return ServerError.Disconnect;
+        return error.Disconnect;
     }
 };
 
@@ -38,7 +37,7 @@ test "DisconnectHandler" {
     var h = DisconnectHandler{};
     const err = h.handle(&arr, "");
 
-    try require.equalError(ServerError.Disconnect, err);
+    try require.equalError(error.Disconnect, err);
 }
 
 pub const CandidateHandler = struct {
