@@ -15,6 +15,7 @@ pub fn translateUrlsToFiles(allocator: std.mem.Allocator, urls: []const []const 
 
     return try arr.toOwnedSlice();
 }
+
 test "translateUrlsToFiles" {
     const alloc = std.testing.allocator;
 

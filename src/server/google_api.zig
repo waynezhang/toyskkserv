@@ -1,7 +1,7 @@
 const std = @import("std");
 const require = @import("protest").require;
 
-/// No need to free memory of result
+/// Caller owns the memory
 pub fn transliterateRequest(allocator: std.mem.Allocator, key: []const u8) ![]const u8 {
     var buffer = std.ArrayList(u8).init(allocator);
     defer buffer.deinit();
@@ -45,6 +45,7 @@ pub fn transliterateRequest(allocator: std.mem.Allocator, key: []const u8) ![]co
     buffer.clearAndFree();
     var rdr = req.reader();
     try rdr.readAllArrayList(&buffer, 1024 * 1024);
+
     return try parseResponse(allocator, buffer.items, key);
 }
 
@@ -100,6 +101,7 @@ fn parseResponse(allocator: std.mem.Allocator, resp: []const u8, key: []const u8
     if (result_arr.items.len > 0) {
         try result_arr.append('/');
     }
+
     return result_arr.toOwnedSlice();
 }
 
