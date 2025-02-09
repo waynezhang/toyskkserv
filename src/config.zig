@@ -1,7 +1,9 @@
 const std = @import("std");
 const zgf = @import("zon_get_fields");
-const require = @import("protest").require;
 const log = @import("log.zig");
+const toAbsolutePath = @import("file.zig").toAbsolutePath;
+
+const require = @import("protest").require;
 
 pub const Config = struct {
     dictionary_directory: []const u8,
@@ -65,13 +67,15 @@ pub fn loadConfig(alloc: std.mem.Allocator) !*Config {
 
 fn parseConfig(allocator: std.mem.Allocator, files: []const []const u8) !*Config {
     for (files) |file| {
-        const path = std.fs.realpathAlloc(allocator, file) catch {
+        const path = toAbsolutePath(allocator, file, null) catch {
             continue;
         };
         defer allocator.free(path);
 
         log.debug("Found config file at {s}", .{path});
-        const txt = try std.fs.cwd().readFileAllocOptions(allocator, path, std.math.maxInt(usize), null, @alignOf(u8), 0);
+        const txt = std.fs.cwd().readFileAllocOptions(allocator, path, std.math.maxInt(usize), null, @alignOf(u8), 0) catch {
+            continue;
+        };
         defer allocator.free(txt);
 
         var ast = try std.zig.Ast.parse(allocator, txt, .zon);
