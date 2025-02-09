@@ -1,3 +1,11 @@
+## v0.0.4 (2025-02-09)
+
+### Fix
+
+- config file is not found ([bef6d29](https://github.com/waynezhang/toyskkserv/commit/bef6d29a097c5c5f1794a7f89e7a3b397e77ff08))
+- download and load didctionary in relative path ([4b72111](https://github.com/waynezhang/toyskkserv/commit/4b72111a68730697c00e3b48cd8b6a1f0ea387ec))
+
+
 ## v0.0.3 (2025-02-09)
 
 ### Fix
