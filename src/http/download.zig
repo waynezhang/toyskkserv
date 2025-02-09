@@ -15,7 +15,10 @@ pub fn downloadFiles(alloc: mem.Allocator, urls: []const []const u8, base_path: 
     skipped: i16,
     failed: i16,
 } {
-    std.fs.cwd().makeDir(base_path) catch |err| switch (err) {
+    const abs_base_path = try file.toAbsolutePath(alloc, base_path, null);
+    defer alloc.free(abs_base_path);
+
+    std.fs.cwd().makeDir(abs_base_path) catch |err| switch (err) {
         error.PathAlreadyExists => {},
         else => {
             return err;
@@ -33,7 +36,7 @@ pub fn downloadFiles(alloc: mem.Allocator, urls: []const []const u8, base_path: 
         }
         const filename = file.extractFilename(url);
         const full_path = try std.fs.path.join(alloc, &[_][]const u8{
-            base_path,
+            abs_base_path,
             filename,
         });
         defer alloc.free(full_path);

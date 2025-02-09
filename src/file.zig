@@ -63,7 +63,8 @@ test "expandTilde" {
 }
 
 pub fn toAbsolutePath(alloc: std.mem.Allocator, path: []const u8, base_path: ?[]const u8) ![]const u8 {
-    const base = base_path orelse "./";
+    const base = try expandTilde(alloc, base_path orelse "./");
+    defer alloc.free(base);
 
     if (std.mem.startsWith(u8, path, "~/")) {
         return try expandTilde(alloc, path);
@@ -107,6 +108,18 @@ test "toAbsolutePath" {
     }
     {
         const p = try toAbsolutePath(alloc, "~/test.txt", cwd);
+        defer alloc.free(p);
+
+        const expected = try std.fs.path.join(alloc, &[_][]const u8{
+            home,
+            "test.txt",
+        });
+        defer alloc.free(expected);
+
+        try require.equal(expected, p);
+    }
+    {
+        const p = try toAbsolutePath(alloc, "test.txt", "~");
         defer alloc.free(p);
 
         const expected = try std.fs.path.join(alloc, &[_][]const u8{
