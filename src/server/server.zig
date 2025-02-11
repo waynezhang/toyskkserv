@@ -15,7 +15,7 @@ const RawStringHandler = @import("handlers.zig").RawStringHandler;
 const CustomProtocolHandler = @import("handlers.zig").CustomProtocolHandler;
 
 const version = @import("../version.zig");
-const DictManager = @import("../skk/dict.zig").DictManager;
+const DictManager = @import("../dict.zig").DictManager;
 
 const Context = struct {
     listen_addr: []const u8,
@@ -144,7 +144,8 @@ pub const Server = struct {
             return error.ConnectionDisconnected;
         }
 
-        const line = try euc_jp.convertEucJpToUtf8(self.allocator, mem.trim(u8, buf[0..read], " \n"));
+        var conv_buf = [_]u8{0} ** 4096;
+        const line = try euc_jp.convertEucJpToUtf8(mem.trim(u8, buf[0..read], " \n"), &conv_buf);
 
         log.info("Request: {s}", .{line});
         if (line.len == 0) {

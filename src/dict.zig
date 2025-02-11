@@ -1,48 +1,22 @@
 const std = @import("std");
 const btree = @import("btree-zig");
-const log = @import("../log.zig");
-const utils = @import("utils.zig");
-const file = @import("../file.zig");
-const translateUrlsToFiles = @import("../http/url.zig").translateUrlsToFiles;
+const log = @import("log.zig");
+const skk = @import("skk/skk.zig");
+const file = @import("file.zig");
+const translateUrlsToFiles = @import("http/url.zig").translateUrlsToFiles;
 const euc_jp = @import("euc-jis-2004-zig");
 const require = @import("protest").require;
 
-pub const Encoding = enum {
-    euc_jp,
-    utf8,
-    undecided,
-};
-
-const Entry = struct {
-    key: []const u8,
-    candidate: []const u8,
-
-    fn compare(a: *Entry, b: *Entry, _: ?*void) c_int {
-        const order = std.mem.order(u8, a.key, b.key);
-        switch (order) {
-            .lt => {
-                return -1;
-            },
-            .eq => {
-                return 0;
-            },
-            .gt => {
-                return 1;
-            },
-        }
-    }
-};
-
 pub const DictManager = struct {
     allocator: std.mem.Allocator,
-    tree: *btree.Btree(Entry, void) = undefined,
+    tree: *btree.Btree(skk.Entry, void) = undefined,
 
     pub fn init(allocator: std.mem.Allocator) !@This() {
         var manager: @This() = undefined;
         manager.allocator = allocator;
 
-        manager.tree = try allocator.create(btree.Btree(Entry, void));
-        manager.tree.* = btree.Btree(Entry, void).init(0, Entry.compare, null);
+        manager.tree = try allocator.create(btree.Btree(skk.Entry, void));
+        manager.tree.* = btree.Btree(skk.Entry, void).init(0, skk.Entry.compare, null);
 
         return manager;
     }
@@ -74,7 +48,7 @@ pub const DictManager = struct {
         if (key.len == 0) {
             return "";
         }
-        const found: Entry = .{
+        const found: skk.Entry = .{
             .key = key,
             .candidate = "",
         };
@@ -93,7 +67,7 @@ pub const DictManager = struct {
             arr: *std.ArrayList(u8),
         };
         const cb = struct {
-            fn iter(a: *Entry, context: ?*Ctx) bool {
+            fn iter(a: *skk.Entry, context: ?*Ctx) bool {
                 if (std.mem.startsWith(u8, a.key, context.?.pivo_key)) {
                     context.?.arr.append('/') catch {
                         return false;
@@ -115,7 +89,7 @@ pub const DictManager = struct {
             .arr = &arr,
         };
 
-        const pivot = Entry{
+        const pivot = skk.Entry{
             .key = key,
             .candidate = "",
         };
@@ -144,37 +118,17 @@ pub const DictManager = struct {
     }
 };
 
-fn loadFile(allocator: std.mem.Allocator, tree: *btree.Btree(Entry, void), filename: []const u8) !void {
-    const f = try std.fs.cwd().openFile(filename, .{});
-    defer f.close();
+fn loadFile(allocator: std.mem.Allocator, tree: *btree.Btree(skk.Entry, void), filename: []const u8) !void {
+    log.info("Processing file {s}", .{file.extractFilename(filename)});
 
-    var buf_reader = std.io.bufferedReader(f.reader());
-    var reader = buf_reader.reader();
+    var line_buf = [_]u8{0} ** 4096;
+    var conv_buf = [_]u8{0} ** 4096;
 
-    var encoding: Encoding = if (std.mem.endsWith(u8, filename, ".utf8")) blk: {
-        log.debug("Prcoessing file: {s} in encode: {s}", .{ file.extractFilename(filename), "utf8" });
-        break :blk .utf8;
-    } else .undecided;
+    var ite = try skk.OpenDictionaryFile(filename, &line_buf);
+    defer ite.deinit();
 
-    var line_buf: [8192]u8 = undefined;
-
-    while (reader.readUntilDelimiterOrEof(&line_buf, '\n') catch "") |line| {
-        if (encoding == .undecided) {
-            encoding = utils.detectEncoding(line);
-            log.debug("Prcoessing file: {s} in encode: {s}", .{ file.extractFilename(filename), @tagName(encoding) });
-        }
-        if (std.mem.startsWith(u8, line, ";;")) {
-            continue;
-        }
-        if (encoding == .utf8) {
-            processLine(allocator, tree, line);
-        } else {
-            if (euc_jp.convertEucJpToUtf8(allocator, line)) |utf8_line| {
-                defer allocator.free(utf8_line);
-
-                processLine(allocator, tree, utf8_line);
-            } else |_| {}
-        }
+    while (try ite.next(&conv_buf)) |pair| {
+        processLine(allocator, tree, pair.key, pair.candidate);
     }
 }
 
@@ -219,21 +173,15 @@ test "DictManager" {
     try require.equal("/キロ/", mgr.findCandidate("1024"));
 }
 
-fn processLine(allocator: std.mem.Allocator, tree: *btree.Btree(Entry, void), line: []const u8) void {
-    const key, const cdd = utils.splitFirstSpace(line);
-    if (cdd.len == 0) {
-        log.info("Invalid line: {s}", .{cdd});
-        return;
-    }
-
-    const found: Entry = .{
+fn processLine(allocator: std.mem.Allocator, tree: *btree.Btree(skk.Entry, void), key: []const u8, candidate: []const u8) void {
+    const found: skk.Entry = .{
         .key = key,
         .candidate = "",
     };
 
     if (tree.get(&found)) |ent| {
         if (false) {} else {
-            if (utils.concatCandidats(allocator, ent.candidate, cdd)) |concated| {
+            if (concatCandidats(allocator, ent.candidate, candidate)) |concated| {
                 allocator.free(ent.candidate);
                 ent.candidate = concated;
             } else |err| {
@@ -241,16 +189,16 @@ fn processLine(allocator: std.mem.Allocator, tree: *btree.Btree(Entry, void), li
             }
         }
     } else {
-        const ent: Entry = .{
+        const ent: skk.Entry = .{
             .key = allocator.dupe(u8, key) catch unreachable,
-            .candidate = allocator.dupe(u8, cdd) catch unreachable,
+            .candidate = allocator.dupe(u8, candidate) catch unreachable,
         };
 
         _ = tree.set(&ent);
     }
 }
 
-fn clearBtree(alloc: std.mem.Allocator, tree: *btree.Btree(Entry, void)) void {
+fn clearBtree(alloc: std.mem.Allocator, tree: *btree.Btree(skk.Entry, void)) void {
     while (true) {
         if (tree.popMin()) |ent| {
             alloc.free(ent.key);
@@ -264,35 +212,66 @@ fn clearBtree(alloc: std.mem.Allocator, tree: *btree.Btree(Entry, void)) void {
 
 test "processLine" {
     const alloc = std.testing.allocator;
-    var tree = btree.Btree(Entry, void).init(0, Entry.compare, null);
+    var tree = btree.Btree(skk.Entry, void).init(0, skk.Entry.compare, null);
     defer {
         clearBtree(alloc, &tree);
         tree.deinit();
     }
 
-    var found: Entry = .{
+    var found: skk.Entry = .{
         .key = "",
         .candidate = "",
     };
     {
-        processLine(alloc, &tree, "test /abc/");
+        processLine(alloc, &tree, "test", "/abc/");
 
         found.key = "test";
         const ret = tree.get(&found);
         try require.equal("/abc/", ret.?.candidate);
     }
     {
-        processLine(alloc, &tree, "test2 /123/");
+        processLine(alloc, &tree, "test2", "/123/");
 
         found.key = "test2";
         const ret = tree.get(&found);
         try require.equal("/123/", ret.?.candidate);
     }
     {
-        processLine(alloc, &tree, "test /def/");
+        processLine(alloc, &tree, "test", "/def/");
 
         found.key = "test";
         const ret = tree.get(&found);
         try require.equal("/abc/def/", ret.?.candidate);
+    }
+}
+
+fn concatCandidats(allocator: std.mem.Allocator, first: []const u8, second: []const u8) ![]u8 {
+    const trimmed_second = if (std.mem.startsWith(u8, second, "/"))
+        second[1..]
+    else
+        second;
+
+    return std.mem.concat(allocator, u8, &[_][]const u8{ first, trimmed_second });
+}
+
+test "concatCandidats" {
+    const alloc = std.testing.allocator;
+    {
+        const cdd = try concatCandidats(alloc, "/abc/", "/def/");
+        defer alloc.free(cdd);
+
+        try require.equal("/abc/def/", cdd);
+    }
+    {
+        const cdd = try concatCandidats(alloc, "/abc/", "def/");
+        defer alloc.free(cdd);
+
+        try require.equal("/abc/def/", cdd);
+    }
+    {
+        const cdd = try concatCandidats(alloc, "/abc/", "");
+        defer alloc.free(cdd);
+
+        try require.equal("/abc/", cdd);
     }
 }

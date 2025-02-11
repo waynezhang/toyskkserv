@@ -2,7 +2,7 @@ const std = @import("std");
 const mem = std.mem;
 const resp = @import("response.zig");
 const log = @import("../log.zig");
-const DictManager = @import("../skk/dict.zig").DictManager;
+const DictManager = @import("../dict.zig").DictManager;
 const google_api = @import("google_api.zig");
 const config = @import("../config.zig");
 

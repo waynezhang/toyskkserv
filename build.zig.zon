@@ -52,8 +52,8 @@
             .hash = "12203ae90636504172540e6e0feb2881affd82768af6f0a379cb84a3f70b53705fe5",
         },
         .@"euc-jis-2004-zig" = .{
-            .url = "git+https://github.com/waynezhang/euc-jis-2004-zig#b32003847c12e5250ad23e110a0bc9ba523cbca4",
-            .hash = "1220e63b00fb073f97536f15fae4eabd0cf6c9bd7094433dfccd684534c23589f4b4",
+            .url = "git+https://github.com/waynezhang/euc-jis-2004-zig#5a3be46c07f429723454a3121c13a76963e5de1f",
+            .hash = "12202d1fa220984efd18d4b2a095b95591a1fd458ec112c2148ecb61f8594fd9ad11",
         },
     },
     .paths = .{
