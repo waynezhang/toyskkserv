@@ -1,3 +1,25 @@
+## v0.0.5 (2025-02-11)
+
+### New feature
+
+- reload command ([3f67678](https://github.com/waynezhang/toyskkserv/commit/3f67678048d5fefe5e8f5af4dacff62ee0784650))
+- update command ([0fb4ce5](https://github.com/waynezhang/toyskkserv/commit/0fb4ce5301623fdaa8f2118ee5f2acee306ffae8))
+
+### Fix
+
+- (workaround) disable log from zon_get_field ([bb9b254](https://github.com/waynezhang/toyskkserv/commit/bb9b254f3e83db3a6bc1758f9bed749dba6eae64))
+- leak ([6c9e961](https://github.com/waynezhang/toyskkserv/commit/6c9e96129fd2375e44cacc1034a7383d17d28353))
+- log ([ae1cece](https://github.com/waynezhang/toyskkserv/commit/ae1ceced3feab282d2ada678196af3d1483b5ad3))
+
+### Refactor
+
+- build.zig ([3ea5e6f](https://github.com/waynezhang/toyskkserv/commit/3ea5e6f264deb5aaf91a490f173b97755762ea6d))
+- move cmds to cmd directory ([89aaff5](https://github.com/waynezhang/toyskkserv/commit/89aaff5742d8c8f184e2e85f4465fc0413eedaf4))
+- orgnaize files ([5079abe](https://github.com/waynezhang/toyskkserv/commit/5079abef2241cbc8cc33e176e32b9b43a9b9b877))
+- separate euc-jis-2004 converter ([2583424](https://github.com/waynezhang/toyskkserv/commit/2583424c3a245ad6bb085774c81655f0c39df96a))
+- separate skk dict parse logic ([64793c3](https://github.com/waynezhang/toyskkserv/commit/64793c37823d9a6630c55e9a3939f4e7a64a0470))
+
+
 ## v0.0.4 (2025-02-09)
 
 ### Fix
