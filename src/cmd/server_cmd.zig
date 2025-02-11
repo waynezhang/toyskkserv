@@ -1,5 +1,5 @@
 const std = @import("std");
-const dict = @import("../skk/dict.zig");
+const dict = @import("../dict.zig");
 const Server = @import("../server/server.zig").Server;
 const config = @import("../config.zig");
 const jdz_allocator = @import("jdz_allocator");

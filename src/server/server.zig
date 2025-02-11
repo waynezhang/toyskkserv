@@ -2,6 +2,7 @@ const std = @import("std");
 const mem = std.mem;
 const net = std.net;
 const network = @import("network");
+const euc_jp = @import("euc-jis-2004-zig");
 const build_options = @import("build_options");
 
 const ip = @import("ip.zig");
@@ -14,8 +15,7 @@ const RawStringHandler = @import("handlers.zig").RawStringHandler;
 const CustomProtocolHandler = @import("handlers.zig").CustomProtocolHandler;
 
 const version = @import("../version.zig");
-const euc_jp = @import("../japanese/euc_jp.zig");
-const DictManager = @import("../skk/dict.zig").DictManager;
+const DictManager = @import("../dict.zig").DictManager;
 
 const Context = struct {
     listen_addr: []const u8,
@@ -144,7 +144,8 @@ pub const Server = struct {
             return error.ConnectionDisconnected;
         }
 
-        const line = try euc_jp.convertEucJpToUtf8(self.allocator, mem.trim(u8, buf[0..read], " \n"));
+        var conv_buf = [_]u8{0} ** 4096;
+        const line = try euc_jp.convertEucJpToUtf8(mem.trim(u8, buf[0..read], " \n"), &conv_buf);
 
         log.info("Request: {s}", .{line});
         if (line.len == 0) {
