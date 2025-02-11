@@ -29,7 +29,7 @@ Some custom protocol for internal us:
 
 ### Build from source
 
-`$ make && copy bin/toyskkserv /usr/local/bin`
+`$ zig build -Doptimize=ReleaseSafe && cp ./zig-out/bin/toyskkserv /usr/local/bin`
 
 ### Via Homebrew
 
