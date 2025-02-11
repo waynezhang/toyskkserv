@@ -20,43 +20,34 @@ pub const Server = struct {
     dict_mgr: *DictManager,
     listen_addr: []const u8,
     dictionary_directory: []const u8,
-    handlers: *std.AutoArrayHashMap(u8, handlers.Handler),
+    handlers: []const handlers.Handler,
 
     pub fn init(allocator: std.mem.Allocator, context: Context) !Self {
         const dict_mgr = try allocator.create(DictManager);
         dict_mgr.* = try DictManager.init(allocator);
 
-        const hdls = try allocator.create(std.AutoArrayHashMap(u8, handlers.Handler));
-        hdls.* = std.AutoArrayHashMap(u8, handlers.Handler).init(allocator);
-        {
-            const handler = try allocator.create(handlers.DisconnectHandler);
-            try hdls.put('0', handlers.Handler{ .disconnect_handler = handler });
-        }
-        {
-            const handler = try allocator.create(handlers.CandidateHandler);
-            handler.* = handlers.CandidateHandler.init(allocator, dict_mgr, context.use_google);
-            try hdls.put('1', handlers.Handler{ .candidate_handler = handler });
-        }
-        {
-            const handler = try allocator.create(handlers.RawStringHandler);
-            handler.* = try handlers.RawStringHandler.init(allocator, version.FullDescription);
-            try hdls.put('2', handlers.Handler{ .raw_string_handler = handler });
-        }
-        {
-            const handler = try allocator.create(handlers.RawStringHandler);
-            handler.* = try handlers.RawStringHandler.init(allocator, context.listen_addr);
-            try hdls.put('3', handlers.Handler{ .raw_string_handler = handler });
-        }
-        {
-            const handler = try allocator.create(handlers.CompletionHandler);
-            handler.* = handlers.CompletionHandler.init(allocator, dict_mgr);
-            try hdls.put('4', handlers.Handler{ .completion_handler = handler });
-        }
-        {
-            const handler = try allocator.create(handlers.CustomProtocolHandler);
-            handler.* = handlers.CustomProtocolHandler.init(allocator, dict_mgr);
-            try hdls.put('c', handlers.Handler{ .custom_protocol_handler = handler });
-        }
+        var hdls = try allocator.alloc(handlers.Handler, 6);
+        hdls[0] = handlers.Handler{
+            .disconnect_handler = handlers.DisconnectHandler{},
+        };
+        hdls[1] = handlers.Handler{
+            .candidate_handler = handlers.CandidateHandler{
+                .dict_mgr = dict_mgr,
+                .use_google = context.use_google,
+            },
+        };
+        hdls[2] = handlers.Handler{
+            .raw_string_handler = handlers.RawStringHandler(128).init(version.FullDescription),
+        };
+        hdls[3] = handlers.Handler{
+            .raw_string_handler = handlers.RawStringHandler(128).init(context.listen_addr),
+        };
+        hdls[4] = handlers.Handler{
+            .completion_handler = handlers.CompletionHandler{ .dict_mgr = dict_mgr },
+        };
+        hdls[5] = handlers.Handler{
+            .custom_protocol_handler = handlers.CustomProtocolHandler{ .dict_mgr = dict_mgr },
+        };
 
         return .{
             .allocator = allocator,
@@ -68,11 +59,15 @@ pub const Server = struct {
     }
 
     pub fn deinit(self: *Self) void {
+        self.allocator.free(self.listen_addr);
+        self.allocator.free(self.dictionary_directory);
+        self.allocator.free(self.handlers);
         self.allocator.destroy(self.dict_mgr);
     }
 
     pub fn serve(self: *Self, dicts: []const []const u8) !void {
         try self.dict_mgr.loadUrls(dicts, self.dictionary_directory);
+        defer self.dict_mgr.deinit();
 
         try network.init();
         var server_socket = try network.Socket.create(network.AddressFamily.ipv4, network.Protocol.tcp);
@@ -142,12 +137,14 @@ pub const Server = struct {
             return;
         }
 
-        if (self.handlers.get(line[0])) |h| {
-            try (h.handle(output, line[1..]));
-            try output.append('\n');
-            _ = try socket.send(output.items);
-        } else {
+        const cmd = line[0] - '0';
+        if (cmd >= self.handlers.len) {
             utils.log.info("Invalid request: {s}", .{line});
+            return;
         }
+
+        try self.handlers[cmd].handle(output, line[1..]);
+        try output.append('\n');
+        _ = try socket.send(output.items);
     }
 };

@@ -20,5 +20,5 @@ pub fn reload() !void {
         alloc.destroy(cfg);
     }
 
-    try utils.net.sendMessage(cfg.listen_addr, "creload");
+    try utils.net.sendMessage(cfg.listen_addr, "5reload");
 }

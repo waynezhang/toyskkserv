@@ -22,7 +22,7 @@ The following commands are supported:
 
 Some custom protocol for internal us:
 
-- `creload`: reload dictionaries without restart
+- `5reload`: reload dictionaries without restart
 - ...
 
 ## Install
