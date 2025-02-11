@@ -6,6 +6,10 @@ const update = @import("cmd/update_cmd.zig");
 const server = @import("cmd/server_cmd.zig");
 const reload = @import("cmd/reload.zig");
 
+pub const std_options = .{
+    .log_level = .err,
+};
+
 var verbose: bool = false;
 
 pub fn main() !void {
