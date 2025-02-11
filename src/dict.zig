@@ -1,10 +1,8 @@
 const std = @import("std");
 const btree = @import("btree-zig");
-const log = @import("log.zig");
 const skk = @import("skk/skk.zig");
-const file = @import("file.zig");
-const translateUrlsToFiles = @import("http/url.zig").translateUrlsToFiles;
-const euc_jp = @import("euc-jis-2004-zig");
+const utils = @import("utils/utils.zig");
+
 const require = @import("protest").require;
 
 pub const DictManager = struct {
@@ -33,7 +31,7 @@ pub const DictManager = struct {
     }
 
     pub fn loadUrls(self: *@This(), urls: []const []const u8, dictionary_path: []const u8) !void {
-        const files = try translateUrlsToFiles(self.allocator, urls, dictionary_path);
+        const files = try utils.url.translateUrlsToFiles(self.allocator, urls, dictionary_path);
         defer {
             for (files) |f| {
                 self.allocator.free(f);
@@ -102,24 +100,24 @@ pub const DictManager = struct {
     }
 
     fn loadFiles(self: *const @This(), filenames: []const []const u8) !void {
-        log.info("Start loading dictionaries", .{});
+        utils.log.info("Start loading dictionaries", .{});
 
         var loaded: i16 = 0;
         for (filenames) |filename| {
             loadFile(self.allocator, self.tree, filename) catch |err| {
-                log.err("Failed to open file {s} due to {}", .{ filename, err });
+                utils.log.err("Failed to open file {s} due to {}", .{ filename, err });
                 continue;
             };
 
             loaded += 1;
         }
 
-        log.info("Loaded {d}/{d} dictionaries", .{ loaded, filenames.len });
+        utils.log.info("Loaded {d}/{d} dictionaries", .{ loaded, filenames.len });
     }
 };
 
 fn loadFile(allocator: std.mem.Allocator, tree: *btree.Btree(skk.Entry, void), filename: []const u8) !void {
-    log.info("Processing file {s}", .{file.extractFilename(filename)});
+    utils.log.info("Processing file {s}", .{utils.fs.extractFilename(filename)});
 
     var line_buf = [_]u8{0} ** 4096;
     var conv_buf = [_]u8{0} ** 4096;
@@ -185,7 +183,7 @@ fn processLine(allocator: std.mem.Allocator, tree: *btree.Btree(skk.Entry, void)
                 allocator.free(ent.candidate);
                 ent.candidate = concated;
             } else |err| {
-                log.err("Failed to concatCandidate {}", .{err});
+                utils.log.err("Failed to concatCandidate {}", .{err});
             }
         }
     } else {

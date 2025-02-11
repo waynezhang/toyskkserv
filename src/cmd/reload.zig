@@ -1,6 +1,6 @@
 const std = @import("std");
 const config = @import("../config.zig");
-const tcp = @import("../http/tcp.zig");
+const utils = @import("../utils/utils.zig");
 const log = std.log;
 
 pub fn reload() !void {
@@ -20,5 +20,5 @@ pub fn reload() !void {
         alloc.destroy(cfg);
     }
 
-    try tcp.sendMessage(cfg.listen_addr, "creload");
+    try utils.net.sendMessage(cfg.listen_addr, "creload");
 }

@@ -1,19 +1,9 @@
 const std = @import("std");
-const mem = std.mem;
-const net = std.net;
 const network = @import("network");
 const euc_jp = @import("euc-jis-2004-zig");
-const build_options = @import("build_options");
 
-const ip = @import("ip.zig");
-const log = @import("../log.zig");
-const Handler = @import("handlers.zig").Handler;
-const CandidateHandler = @import("handlers.zig").CandidateHandler;
-const CompletionHandler = @import("handlers.zig").CompletionHandler;
-const DisconnectHandler = @import("handlers.zig").DisconnectHandler;
-const RawStringHandler = @import("handlers.zig").RawStringHandler;
-const CustomProtocolHandler = @import("handlers.zig").CustomProtocolHandler;
-
+const handlers = @import("handlers.zig");
+const utils = @import("../utils/utils.zig");
 const version = @import("../version.zig");
 const DictManager = @import("../dict.zig").DictManager;
 
@@ -26,46 +16,46 @@ const Context = struct {
 pub const Server = struct {
     const Self = @This();
 
-    allocator: mem.Allocator,
+    allocator: std.mem.Allocator,
     dict_mgr: *DictManager,
     listen_addr: []const u8,
     dictionary_directory: []const u8,
-    handlers: *std.AutoArrayHashMap(u8, Handler),
+    handlers: *std.AutoArrayHashMap(u8, handlers.Handler),
 
-    pub fn init(allocator: mem.Allocator, context: Context) !Self {
+    pub fn init(allocator: std.mem.Allocator, context: Context) !Self {
         const dict_mgr = try allocator.create(DictManager);
         dict_mgr.* = try DictManager.init(allocator);
 
-        const handlers = try allocator.create(std.AutoArrayHashMap(u8, Handler));
-        handlers.* = std.AutoArrayHashMap(u8, Handler).init(allocator);
+        const hdls = try allocator.create(std.AutoArrayHashMap(u8, handlers.Handler));
+        hdls.* = std.AutoArrayHashMap(u8, handlers.Handler).init(allocator);
         {
-            const handler = try allocator.create(DisconnectHandler);
-            try handlers.put('0', Handler{ .disconnect_handler = handler });
+            const handler = try allocator.create(handlers.DisconnectHandler);
+            try hdls.put('0', handlers.Handler{ .disconnect_handler = handler });
         }
         {
-            const handler = try allocator.create(CandidateHandler);
-            handler.* = CandidateHandler.init(allocator, dict_mgr, context.use_google);
-            try handlers.put('1', Handler{ .candidate_handler = handler });
+            const handler = try allocator.create(handlers.CandidateHandler);
+            handler.* = handlers.CandidateHandler.init(allocator, dict_mgr, context.use_google);
+            try hdls.put('1', handlers.Handler{ .candidate_handler = handler });
         }
         {
-            const handler = try allocator.create(RawStringHandler);
-            handler.* = try RawStringHandler.init(allocator, version.FullDescription);
-            try handlers.put('2', Handler{ .raw_string_handler = handler });
+            const handler = try allocator.create(handlers.RawStringHandler);
+            handler.* = try handlers.RawStringHandler.init(allocator, version.FullDescription);
+            try hdls.put('2', handlers.Handler{ .raw_string_handler = handler });
         }
         {
-            const handler = try allocator.create(RawStringHandler);
-            handler.* = try RawStringHandler.init(allocator, context.listen_addr);
-            try handlers.put('3', Handler{ .raw_string_handler = handler });
+            const handler = try allocator.create(handlers.RawStringHandler);
+            handler.* = try handlers.RawStringHandler.init(allocator, context.listen_addr);
+            try hdls.put('3', handlers.Handler{ .raw_string_handler = handler });
         }
         {
-            const handler = try allocator.create(CompletionHandler);
-            handler.* = CompletionHandler.init(allocator, dict_mgr);
-            try handlers.put('4', Handler{ .completion_handler = handler });
+            const handler = try allocator.create(handlers.CompletionHandler);
+            handler.* = handlers.CompletionHandler.init(allocator, dict_mgr);
+            try hdls.put('4', handlers.Handler{ .completion_handler = handler });
         }
         {
-            const handler = try allocator.create(CustomProtocolHandler);
-            handler.* = CustomProtocolHandler.init(allocator, dict_mgr);
-            try handlers.put('c', Handler{ .custom_protocol_handler = handler });
+            const handler = try allocator.create(handlers.CustomProtocolHandler);
+            handler.* = handlers.CustomProtocolHandler.init(allocator, dict_mgr);
+            try hdls.put('c', handlers.Handler{ .custom_protocol_handler = handler });
         }
 
         return .{
@@ -73,7 +63,7 @@ pub const Server = struct {
             .dict_mgr = dict_mgr,
             .listen_addr = try allocator.dupe(u8, context.listen_addr),
             .dictionary_directory = try allocator.dupe(u8, context.dictionary_directory),
-            .handlers = handlers,
+            .handlers = hdls,
         };
     }
 
@@ -105,7 +95,7 @@ pub const Server = struct {
             arr.deinit();
         }
 
-        log.info("Listening at {s}", .{self.listen_addr});
+        utils.log.info("Listening at {s}", .{self.listen_addr});
 
         var buf = [_]u8{0} ** 4096;
         var write_buf = std.ArrayList(u8).init(self.allocator);
@@ -117,7 +107,7 @@ pub const Server = struct {
                 const client_socket = try server_socket.accept();
 
                 const addr = try client_socket.getRemoteEndPoint();
-                log.info("New connection from {}", .{addr});
+                utils.log.info("New connection from {}", .{addr});
 
                 try arr.append(client_socket);
                 try ss.add(client_socket, socket_event);
@@ -126,7 +116,7 @@ pub const Server = struct {
             for (arr.items, 0..) |socket, i| {
                 if (ss.isReadyRead(socket)) {
                     self.handleMessage(socket, &buf, &write_buf) catch {
-                        log.info("Connection disconnected", .{});
+                        utils.log.info("Connection disconnected", .{});
                         socket.close();
                         ss.remove(socket);
                         _ = arr.swapRemove(i);
@@ -145,9 +135,9 @@ pub const Server = struct {
         }
 
         var conv_buf = [_]u8{0} ** 4096;
-        const line = try euc_jp.convertEucJpToUtf8(mem.trim(u8, buf[0..read], " \n"), &conv_buf);
+        const line = try euc_jp.convertEucJpToUtf8(std.mem.trim(u8, buf[0..read], " \n"), &conv_buf);
 
-        log.info("Request: {s}", .{line});
+        utils.log.info("Request: {s}", .{line});
         if (line.len == 0) {
             return;
         }
@@ -157,7 +147,7 @@ pub const Server = struct {
             try output.append('\n');
             _ = try socket.send(output.items);
         } else {
-            log.info("Invalid request: {s}", .{line});
+            utils.log.info("Invalid request: {s}", .{line});
         }
     }
 };

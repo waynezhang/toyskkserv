@@ -72,7 +72,7 @@ pub fn main() !void {
 
 fn serve() !void {
     if (verbose) {
-        @import("log.zig").setLevel(.debug);
+        @import("utils/utils.zig").log.setLevel(.debug);
     }
     try server.serve();
 }

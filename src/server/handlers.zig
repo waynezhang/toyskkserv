@@ -1,7 +1,6 @@
 const std = @import("std");
-const mem = std.mem;
 const resp = @import("response.zig");
-const log = @import("../log.zig");
+const utils = @import("../utils/utils.zig");
 const DictManager = @import("../dict.zig").DictManager;
 const google_api = @import("google_api.zig");
 const config = @import("../config.zig");
@@ -41,11 +40,11 @@ test "DisconnectHandler" {
 }
 
 pub const CandidateHandler = struct {
-    allocator: mem.Allocator,
+    allocator: std.mem.Allocator,
     dict_mgr: *DictManager,
     use_google: bool,
 
-    pub fn init(allocator: mem.Allocator, dict_mgr: *DictManager, use_google: bool) @This() {
+    pub fn init(allocator: std.mem.Allocator, dict_mgr: *DictManager, use_google: bool) @This() {
         return .{
             .allocator = allocator,
             .dict_mgr = dict_mgr,
@@ -62,9 +61,9 @@ pub const CandidateHandler = struct {
             return try resp.generateResponse(buffer, line, "");
         }
 
-        log.debug("Fallback to google", .{});
+        utils.log.debug("Fallback to google", .{});
         const fallback = google_api.transliterateRequest(self.allocator, line) catch |err| {
-            log.err("Failed to make request due to {}", .{err});
+            utils.log.err("Failed to make request due to {}", .{err});
             return try resp.generateResponse(buffer, line, "");
         };
         defer self.allocator.free(fallback);
@@ -105,10 +104,10 @@ test "CandidateHandler" {
 }
 
 pub const CompletionHandler = struct {
-    allocator: mem.Allocator,
+    allocator: std.mem.Allocator,
     dict_mgr: *DictManager,
 
-    pub fn init(alloc: mem.Allocator, dict_mgr: *DictManager) @This() {
+    pub fn init(alloc: std.mem.Allocator, dict_mgr: *DictManager) @This() {
         return .{
             .allocator = alloc,
             .dict_mgr = dict_mgr,
@@ -147,10 +146,10 @@ test "CompletionHandler" {
 }
 
 pub const RawStringHandler = struct {
-    allocator: mem.Allocator,
+    allocator: std.mem.Allocator,
     str: []const u8,
 
-    pub fn init(allocator: mem.Allocator, str: []const u8) !@This() {
+    pub fn init(allocator: std.mem.Allocator, str: []const u8) !@This() {
         return .{
             .allocator = allocator,
             .str = try allocator.dupe(u8, str),
@@ -178,10 +177,10 @@ test "RawStringHandler" {
 }
 
 pub const CustomProtocolHandler = struct {
-    allocator: mem.Allocator,
+    allocator: std.mem.Allocator,
     dict_mgr: *DictManager,
 
-    pub fn init(alloc: mem.Allocator, dict_mgr: *DictManager) CustomProtocolHandler {
+    pub fn init(alloc: std.mem.Allocator, dict_mgr: *DictManager) CustomProtocolHandler {
         return .{
             .allocator = alloc,
             .dict_mgr = dict_mgr,
@@ -189,16 +188,16 @@ pub const CustomProtocolHandler = struct {
     }
 
     fn handle(self: CustomProtocolHandler, _: *std.ArrayList(u8), req: []const u8) !void {
-        if (mem.eql(u8, req, "reload")) {
-            log.info("Reload", .{});
+        if (std.mem.eql(u8, req, "reload")) {
+            utils.log.info("Reload", .{});
 
             self.reload() catch |err| {
-                log.err("Failed to reload dictionaries due to {}", .{err});
+                utils.log.err("Failed to reload dictionaries due to {}", .{err});
             };
             return;
         }
 
-        log.err("Not implemented command {s}", .{req});
+        utils.log.err("Not implemented command {s}", .{req});
     }
 
     fn reload(self: CustomProtocolHandler) !void {
