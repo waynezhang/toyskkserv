@@ -1,5 +1,5 @@
 const std = @import("std");
-const file = @import("../file.zig");
+const fs = @import("fs.zig");
 const require = @import("protest").require;
 
 pub fn translateUrlsToFiles(allocator: std.mem.Allocator, urls: []const []const u8, base_path: []const u8) ![]const []const u8 {
@@ -7,8 +7,8 @@ pub fn translateUrlsToFiles(allocator: std.mem.Allocator, urls: []const []const 
     defer arr.deinit();
 
     for (urls) |url| {
-        const f = if (isHttpUrl(url)) file.extractFilename(url) else url;
-        const path = try file.toAbsolutePath(allocator, f, base_path);
+        const f = if (isHttpUrl(url)) fs.extractFilename(url) else url;
+        const path = try fs.toAbsolutePath(allocator, f, base_path);
 
         try arr.append(path);
     }
@@ -22,7 +22,7 @@ test "translateUrlsToFiles" {
     const cwd = try std.fs.cwd().realpathAlloc(alloc, ".");
     defer alloc.free(cwd);
 
-    const home = try file.expandTilde(alloc, "~");
+    const home = try fs.expandTilde(alloc, "~");
     defer alloc.free(home);
 
     const files = [_][]const u8{

@@ -1,7 +1,6 @@
 const std = @import("std");
 const mem = std.mem;
 const require = @import("protest").require;
-const DictManager = @import("../dict.zig").DictManager;
 
 pub fn generateResponse(buffer: *std.ArrayList(u8), req: []const u8, res: []const u8) !void {
     if (res.len > 0) {

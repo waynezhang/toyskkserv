@@ -1,21 +1,15 @@
 const std = @import("std");
-const http = std.http;
-const mem = std.mem;
-
-const log = @import("../log.zig");
-const isHttpUrl = @import("url.zig").isHttpUrl;
-const file = @import("../file.zig");
-
+const utils = @import("../utils/utils.zig");
 const require = @import("protest").require;
 
 /// Download URLs to `base_path` directory. `base_path` is created if it doesn't exist.
 /// Note: jdz allocator is casuing crash.
-pub fn downloadFiles(alloc: mem.Allocator, urls: []const []const u8, base_path: []const u8, force_download: bool) !struct {
+pub fn downloadFiles(alloc: std.mem.Allocator, urls: []const []const u8, base_path: []const u8, force_download: bool) !struct {
     downloaded: i16,
     skipped: i16,
     failed: i16,
 } {
-    const abs_base_path = try file.toAbsolutePath(alloc, base_path, null);
+    const abs_base_path = try utils.fs.toAbsolutePath(alloc, base_path, null);
     defer alloc.free(abs_base_path);
 
     std.fs.cwd().makeDir(abs_base_path) catch |err| switch (err) {
@@ -30,25 +24,25 @@ pub fn downloadFiles(alloc: mem.Allocator, urls: []const []const u8, base_path: 
     var failed: i16 = 0;
 
     for (urls) |url| {
-        if (!isHttpUrl(url)) {
+        if (!utils.url.isHttpUrl(url)) {
             skipped += 1;
             continue;
         }
-        const filename = file.extractFilename(url);
+        const filename = utils.fs.extractFilename(url);
         const full_path = try std.fs.path.join(alloc, &[_][]const u8{
             abs_base_path,
             filename,
         });
         defer alloc.free(full_path);
 
-        if (!force_download and file.isFileExisting(full_path)) {
+        if (!force_download and utils.fs.isFileExisting(full_path)) {
             skipped += 1;
             continue;
         }
 
-        log.debug("Downloading {s}", .{full_path});
+        utils.log.debug("Downloading {s}", .{full_path});
         download(alloc, url, full_path) catch |err| {
-            log.err("Failed to download file {s} to {s} due to {}", .{ url, full_path, err });
+            utils.log.err("Failed to download file {s} to {s} due to {}", .{ url, full_path, err });
             failed += 1;
             continue;
         };
@@ -63,10 +57,10 @@ pub fn downloadFiles(alloc: mem.Allocator, urls: []const []const u8, base_path: 
     };
 }
 
-fn download(allocator: mem.Allocator, url: []const u8, dst: []const u8) !void {
+fn download(allocator: std.mem.Allocator, url: []const u8, dst: []const u8) !void {
     const uri = try std.Uri.parse(url);
 
-    var client = http.Client{ .allocator = allocator };
+    var client = std.http.Client{ .allocator = allocator };
     defer client.deinit();
 
     const header_buf = try allocator.alloc(u8, 1024 * 1024);

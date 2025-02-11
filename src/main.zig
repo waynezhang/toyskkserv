@@ -6,6 +6,10 @@ const update = @import("cmd/update_cmd.zig");
 const server = @import("cmd/server_cmd.zig");
 const reload = @import("cmd/reload.zig");
 
+pub const std_options = .{
+    .log_level = .err,
+};
+
 var verbose: bool = false;
 
 pub fn main() !void {
@@ -72,7 +76,7 @@ pub fn main() !void {
 
 fn serve() !void {
     if (verbose) {
-        @import("log.zig").setLevel(.debug);
+        @import("utils/utils.zig").log.setLevel(.debug);
     }
     try server.serve();
 }

@@ -22,14 +22,14 @@ The following commands are supported:
 
 Some custom protocol for internal us:
 
-- `creload`: reload dictionaries without restart
+- `5reload`: reload dictionaries without restart
 - ...
 
 ## Install
 
 ### Build from source
 
-`$ make && copy bin/toyskkserv /usr/local/bin`
+`$ zig build -Doptimize=ReleaseSafe && cp ./zig-out/bin/toyskkserv /usr/local/bin`
 
 ### Via Homebrew
 

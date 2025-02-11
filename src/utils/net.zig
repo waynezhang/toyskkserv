@@ -1,7 +1,18 @@
 const std = @import("std");
-const mem = std.mem;
 const net = std.net;
+
+const network = @import("network");
 const require = @import("protest").require;
+
+pub fn sendMessage(host: []const u8, message: []const u8) !void {
+    const addr = try parseAddrPort(host);
+
+    const stream = try net.tcpConnectToAddress(addr);
+    defer stream.close();
+
+    var writer = stream.writer();
+    _ = try writer.write(message);
+}
 
 /// Parses an address:port string. If only :port is provided, uses 127.0.0.1 as address
 /// Format: "ip_addr:port" or ":port"
@@ -9,13 +20,11 @@ const require = @import("protest").require;
 pub fn parseAddrPort(str: []const u8) !net.Address {
     const localhost = "127.0.0.1";
 
-    // Find the colon separator
-    const colon_idx = mem.indexOf(u8, str, ":");
+    const colon_idx = std.mem.indexOf(u8, str, ":");
     if (colon_idx == null) {
         return net.IPv4ParseError.Incomplete;
     }
 
-    // Extract IP and port parts
     const ip_part = if (colon_idx.? == 0)
         localhost
     else
@@ -23,7 +32,6 @@ pub fn parseAddrPort(str: []const u8) !net.Address {
 
     const port_part = str[colon_idx.? + 1 ..];
 
-    // Validate port
     const port = std.fmt.parseInt(u16, port_part, 10) catch {
         return net.IPv4ParseError.Incomplete;
     };
