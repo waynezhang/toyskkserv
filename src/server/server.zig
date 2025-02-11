@@ -2,6 +2,7 @@ const std = @import("std");
 const mem = std.mem;
 const net = std.net;
 const network = @import("network");
+const euc_jp = @import("euc-jis-2004-zig");
 const build_options = @import("build_options");
 
 const ip = @import("ip.zig");
@@ -14,7 +15,6 @@ const RawStringHandler = @import("handlers.zig").RawStringHandler;
 const CustomProtocolHandler = @import("handlers.zig").CustomProtocolHandler;
 
 const version = @import("../version.zig");
-const euc_jp = @import("../japanese/euc_jp.zig");
 const DictManager = @import("../skk/dict.zig").DictManager;
 
 const Context = struct {

@@ -4,7 +4,7 @@ const log = @import("../log.zig");
 const utils = @import("utils.zig");
 const file = @import("../file.zig");
 const translateUrlsToFiles = @import("../http/url.zig").translateUrlsToFiles;
-const euc_jp = @import("../japanese/euc_jp.zig");
+const euc_jp = @import("euc-jis-2004-zig");
 const require = @import("protest").require;
 
 pub const Encoding = enum {
