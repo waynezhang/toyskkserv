@@ -14,18 +14,37 @@ pub const Handler = union(enum) {
     raw_string_handler: RawStringHandler(128),
     completion_handler: CompletionHandler,
     custom_protocol_handler: CustomProtocolHandler,
+    exit_handler: ExitHandler,
 
-    pub fn handle(self: Handler, buffer: *std.ArrayList(u8), line: []const u8) anyerror!void {
+    pub fn handle(self: Handler, alloc: std.mem.Allocator, buffer: *std.ArrayList(u8), line: []const u8) anyerror!void {
         switch (self) {
             inline else => |case| {
-                try case.handle(buffer, line);
+                try case.handle(alloc, buffer, line);
             },
         }
     }
 };
 
+pub const ExitHandler = struct {
+    fn handle(_: ExitHandler, _: std.mem.Allocator, _: *std.ArrayList(u8), _: []const u8) !void {
+        if (@import("builtin").mode == .Debug) {
+            return error.Exit;
+        } else unreachable;
+    }
+};
+
+test "ExitHandler" {
+    var arr = std.ArrayList(u8).init(std.testing.allocator);
+    defer arr.deinit();
+
+    var h = ExitHandler{};
+    const err = h.handle(std.testing.allocator, &arr, "");
+
+    try require.equalError(error.Exit, err);
+}
+
 pub const DisconnectHandler = struct {
-    fn handle(_: DisconnectHandler, _: *std.ArrayList(u8), _: []const u8) !void {
+    fn handle(_: DisconnectHandler, _: std.mem.Allocator, _: *std.ArrayList(u8), _: []const u8) !void {
         return error.Disconnect;
     }
 };
@@ -35,7 +54,7 @@ test "DisconnectHandler" {
     defer arr.deinit();
 
     var h = DisconnectHandler{};
-    const err = h.handle(&arr, "");
+    const err = h.handle(std.testing.allocator, &arr, "");
 
     try require.equalError(error.Disconnect, err);
 }
@@ -51,7 +70,7 @@ pub const CandidateHandler = struct {
         };
     }
 
-    fn handle(self: CandidateHandler, buffer: *std.ArrayList(u8), line: []const u8) !void {
+    fn handle(self: CandidateHandler, alloc: std.mem.Allocator, buffer: *std.ArrayList(u8), line: []const u8) !void {
         const cdd = self.dict_mgr.findCandidate(line);
         if (cdd.len > 0) {
             return try resp.generateResponse(buffer, line, cdd);
@@ -62,15 +81,11 @@ pub const CandidateHandler = struct {
 
         utils.log.debug("Fallback to google", .{});
 
-        var jdz = jdz_allocator.JdzAllocator(.{}).init();
-        defer jdz.deinit();
-        const allocator = jdz.allocator();
-
-        const fallback = google_api.transliterateRequest(allocator, line) catch |err| {
+        const fallback = google_api.transliterateRequest(alloc, line) catch |err| {
             utils.log.err("Failed to make request due to {}", .{err});
             return try resp.generateResponse(buffer, line, "");
         };
-        defer allocator.free(fallback);
+        defer alloc.free(fallback);
 
         return try resp.generateResponse(buffer, line, fallback);
     }
@@ -91,20 +106,20 @@ test "CandidateHandler" {
 
     var h = CandidateHandler.init(&mgr, true);
 
-    try h.handle(&arr, "1024");
+    try h.handle(alloc, &arr, "1024");
     try require.equal("1/キロ/", arr.items);
 
     arr.clearAndFree();
-    try h.handle(&arr, "smile");
+    try h.handle(alloc, &arr, "smile");
     try require.equal("4smile ", arr.items);
 
     arr.clearAndFree();
-    try h.handle(&arr, "=1+1");
+    try h.handle(alloc, &arr, "=1+1");
     try require.equal("1/2/2=1+1/＝１＋１/", arr.items);
 
     h.use_google = false;
     arr.clearAndFree();
-    try h.handle(&arr, "=1+1");
+    try h.handle(alloc, &arr, "=1+1");
     try require.equal("4=1+1 ", arr.items);
 }
 
@@ -117,13 +132,9 @@ pub const CompletionHandler = struct {
         };
     }
 
-    fn handle(self: CompletionHandler, buffer: *std.ArrayList(u8), line: []const u8) !void {
-        var jdz = jdz_allocator.JdzAllocator(.{}).init();
-        defer jdz.deinit();
-        const allocator = jdz.allocator();
-
-        const cdd = try self.dict_mgr.findCompletion(allocator, line);
-        defer allocator.free(cdd);
+    fn handle(self: CompletionHandler, alloc: std.mem.Allocator, buffer: *std.ArrayList(u8), line: []const u8) !void {
+        const cdd = try self.dict_mgr.findCompletion(alloc, line);
+        defer alloc.free(cdd);
 
         try resp.generateResponse(buffer, line, cdd);
     }
@@ -144,11 +155,11 @@ test "CompletionHandler" {
 
     var h = CompletionHandler.init(&mgr);
 
-    try h.handle(&arr, "1");
+    try h.handle(alloc, &arr, "1");
     try require.equal("1/1024/1seg/", arr.items);
 
     arr.clearAndFree();
-    try h.handle(&arr, "smile");
+    try h.handle(alloc, &arr, "smile");
     try require.equal("4smile ", arr.items);
 }
 
@@ -166,7 +177,7 @@ pub fn RawStringHandler(size: usize) type {
             return self;
         }
 
-        fn handle(self: RawStringHandler(size), buffer: *std.ArrayList(u8), _: []const u8) !void {
+        fn handle(self: RawStringHandler(size), _: std.mem.Allocator, buffer: *std.ArrayList(u8), _: []const u8) !void {
             try buffer.appendSlice(self.str[0..self.len]);
         }
     };
@@ -178,7 +189,7 @@ test "RawStringHandler" {
 
     var h = RawStringHandler(512).init("a string");
 
-    try h.handle(&arr, "");
+    try h.handle(std.testing.allocator, &arr, "");
     try require.equal("a string", arr.items);
 }
 
@@ -191,11 +202,11 @@ pub const CustomProtocolHandler = struct {
         };
     }
 
-    fn handle(self: CustomProtocolHandler, _: *std.ArrayList(u8), req: []const u8) !void {
+    fn handle(self: CustomProtocolHandler, alloc: std.mem.Allocator, _: *std.ArrayList(u8), req: []const u8) !void {
         if (std.mem.eql(u8, req, "reload")) {
             utils.log.info("Reload", .{});
 
-            self.reload() catch |err| {
+            self.reload(alloc) catch |err| {
                 utils.log.err("Failed to reload dictionaries due to {}", .{err});
             };
             return;
@@ -204,15 +215,11 @@ pub const CustomProtocolHandler = struct {
         utils.log.err("Not implemented command {s}", .{req});
     }
 
-    fn reload(self: CustomProtocolHandler) !void {
-        var jdz = jdz_allocator.JdzAllocator(.{}).init();
-        defer jdz.deinit();
-        const allocator = jdz.allocator();
-
-        const cfg = try config.loadConfig(allocator);
+    fn reload(self: CustomProtocolHandler, alloc: std.mem.Allocator) !void {
+        const cfg = try config.loadConfig(alloc);
         defer {
-            cfg.deinit(allocator);
-            allocator.destroy(cfg);
+            cfg.deinit(alloc);
+            alloc.destroy(cfg);
         }
 
         try reloadDicts(self.dict_mgr, cfg.dictionaries, cfg.dictionary_directory);

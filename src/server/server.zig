@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const network = @import("network");
 const euc_jp = @import("euc-jis-2004-zig");
 
@@ -26,7 +27,7 @@ pub const Server = struct {
         const dict_mgr = try allocator.create(DictManager);
         dict_mgr.* = try DictManager.init(allocator);
 
-        var hdls = try allocator.alloc(handlers.Handler, 6);
+        var hdls = try allocator.alloc(handlers.Handler, if (builtin.mode == .Debug) 7 else 6);
         hdls[0] = handlers.Handler{
             .disconnect_handler = handlers.DisconnectHandler{},
         };
@@ -48,6 +49,11 @@ pub const Server = struct {
         hdls[5] = handlers.Handler{
             .custom_protocol_handler = handlers.CustomProtocolHandler{ .dict_mgr = dict_mgr },
         };
+        if (builtin.mode == .Debug) {
+            hdls[6] = handlers.Handler{
+                .exit_handler = handlers.ExitHandler{},
+            };
+        }
 
         return .{
             .allocator = allocator,
@@ -110,11 +116,16 @@ pub const Server = struct {
 
             for (arr.items, 0..) |socket, i| {
                 if (ss.isReadyRead(socket)) {
-                    self.handleMessage(socket, &buf, &write_buf) catch {
-                        utils.log.info("Connection disconnected", .{});
-                        socket.close();
-                        ss.remove(socket);
-                        _ = arr.swapRemove(i);
+                    self.handleMessage(socket, &buf, &write_buf) catch |err| switch (err) {
+                        error.Exit => {
+                            return;
+                        },
+                        else => {
+                            utils.log.info("Connection disconnected", .{});
+                            socket.close();
+                            ss.remove(socket);
+                            _ = arr.swapRemove(i);
+                        },
                     };
                 }
             }
@@ -143,7 +154,7 @@ pub const Server = struct {
             return;
         }
 
-        try self.handlers[cmd].handle(output, line[1..]);
+        try self.handlers[cmd].handle(self.allocator, output, line[1..]);
         try output.append('\n');
         _ = try socket.send(output.items);
     }

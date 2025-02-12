@@ -117,7 +117,7 @@ pub const DictManager = struct {
 };
 
 fn loadFile(allocator: std.mem.Allocator, tree: *btree.Btree(skk.Entry, void), filename: []const u8) !void {
-    utils.log.info("Processing file {s}", .{utils.fs.extractFilename(filename)});
+    utils.log.debug("Processing file {s}", .{utils.fs.extractFilename(filename)});
 
     var line_buf = [_]u8{0} ** 4096;
     var conv_buf = [_]u8{0} ** 4096;

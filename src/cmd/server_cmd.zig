@@ -67,4 +67,5 @@ pub fn serve() !void {
     server.serve(cfg.dictionaries) catch |err| {
         utils.log.err("Failed to start server due to {}", .{err});
     };
+    utils.log.info("Server exited", .{});
 }
