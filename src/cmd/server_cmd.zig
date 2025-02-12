@@ -43,11 +43,15 @@ pub fn serve() !void {
         const download_alloc = gpa.allocator();
 
         utils.log.info("Start downloading missing dictionaries", .{});
-        if (download.downloadFiles(download_alloc, cfg.dictionaries, cfg.dictionary_directory, false)) |result| {
-            utils.log.info("Download finished: {d}/{d}, {d} skipped. ", .{ result.downloaded, cfg.dictionaries.len, result.skipped });
-        } else |err| {
+        download.downloadFiles(
+            download_alloc,
+            cfg.dictionaries,
+            cfg.dictionary_directory,
+            false,
+            downloadProgress,
+        ) catch |err| {
             utils.log.err("Download failed due to {}", .{err});
-        }
+        };
 
         const deinit_status = gpa.deinit();
         if (deinit_status == .leak) unreachable;
@@ -68,4 +72,8 @@ pub fn serve() !void {
         utils.log.err("Failed to start server due to {}", .{err});
     };
     utils.log.info("Server exited", .{});
+}
+
+fn downloadProgress(url: []const u8, result: download.Result) void {
+    utils.log.debug("{s} {s}", .{ utils.fs.extractFilename(url), result.toString() });
 }

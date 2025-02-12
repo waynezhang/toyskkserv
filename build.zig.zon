@@ -55,6 +55,10 @@
             .url = "git+https://github.com/waynezhang/euc-jis-2004-zig#5a3be46c07f429723454a3121c13a76963e5de1f",
             .hash = "12202d1fa220984efd18d4b2a095b95591a1fd458ec112c2148ecb61f8594fd9ad11",
         },
+        .chroma = .{
+            .url = "git+https://github.com/adia-dev/chroma-zig#c8cd1144aa800f87db3c4bee3d1f0fa0e8c96feb",
+            .hash = "12209a8a991121bba3b21f31d275588690dc7c0d7fa9c361fd892e782dd88e0fb2ba",
+        },
     },
     .paths = .{
         "build.zig",
