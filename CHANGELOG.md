@@ -1,3 +1,10 @@
+## 0.0.6 (2025-02-12)
+
+### Fix
+
+- suppress memory usage by passing allocator to handlers ([e433cfc](https://github.com/waynezhang/toyskkserv/commit/e433cfc108d75704d76fccf70e1834fba878cb2f))
+
+
 ## v0.0.5 (2025-02-11)
 
 ### New feature
