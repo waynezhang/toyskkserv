@@ -4,11 +4,23 @@ const require = @import("protest").require;
 
 /// Download URLs to `base_path` directory. `base_path` is created if it doesn't exist.
 /// Note: jdz allocator is casuing crash.
-pub fn downloadFiles(alloc: std.mem.Allocator, urls: []const []const u8, base_path: []const u8, force_download: bool) !struct {
-    downloaded: i16,
-    skipped: i16,
-    failed: i16,
-} {
+pub const Result = enum {
+    Downloaded,
+    Skipped,
+    Failed,
+    NotUpdated,
+
+    pub fn toString(self: Result) []const u8 {
+        return switch (self) {
+            .Downloaded => "downloaded",
+            .Skipped => "skipped",
+            .Failed => "failed",
+            .NotUpdated => "not updated",
+        };
+    }
+};
+
+pub fn downloadFiles(alloc: std.mem.Allocator, urls: []const []const u8, base_path: []const u8, force_download: bool, comptime progress: fn (url: []const u8, result: Result) void) !void {
     const abs_base_path = try utils.fs.toAbsolutePath(alloc, base_path, null);
     defer alloc.free(abs_base_path);
 
@@ -19,13 +31,9 @@ pub fn downloadFiles(alloc: std.mem.Allocator, urls: []const []const u8, base_pa
         },
     };
 
-    var downloaded: i16 = 0;
-    var skipped: i16 = 0;
-    var failed: i16 = 0;
-
     for (urls) |url| {
         if (!utils.url.isHttpUrl(url)) {
-            skipped += 1;
+            progress(url, .Skipped);
             continue;
         }
         const filename = utils.fs.extractFilename(url);
@@ -36,25 +44,36 @@ pub fn downloadFiles(alloc: std.mem.Allocator, urls: []const []const u8, base_pa
         defer alloc.free(full_path);
 
         if (!force_download and utils.fs.isFileExisting(full_path)) {
-            skipped += 1;
+            progress(url, .Skipped);
             continue;
         }
 
-        utils.log.debug("Downloading {s}", .{full_path});
-        download(alloc, url, full_path) catch |err| {
-            utils.log.err("Failed to download file {s} to {s} due to {}", .{ url, full_path, err });
-            failed += 1;
+        const checksum = utils.fs.sha256(alloc, full_path) catch blk: {
+            if (utils.fs.isFileExisting(full_path)) {
+                progress(url, .Failed);
+                continue;
+            }
+            break :blk "";
+        };
+        defer alloc.free(checksum);
+
+        download(alloc, url, full_path) catch {
+            progress(url, .Failed);
             continue;
         };
 
-        downloaded += 1;
-    }
+        const new_checksum = utils.fs.sha256(alloc, full_path) catch {
+            progress(url, .Failed);
+            continue;
+        };
+        defer alloc.free(new_checksum);
 
-    return .{
-        .downloaded = downloaded,
-        .skipped = skipped,
-        .failed = failed,
-    };
+        if (std.mem.eql(u8, checksum, new_checksum)) {
+            progress(url, .NotUpdated);
+        } else {
+            progress(url, .Downloaded);
+        }
+    }
 }
 
 fn download(allocator: std.mem.Allocator, url: []const u8, dst: []const u8) !void {

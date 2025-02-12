@@ -1,5 +1,6 @@
 const std = @import("std");
 const config = @import("../config.zig");
+const utils = @import("../utils/utils.zig");
 const download = @import("../http/download.zig");
 const log = std.log;
 
@@ -21,6 +22,21 @@ pub fn updateDicts() !void {
     }
 
     log.info("Start updating at {s}", .{cfg.dictionary_directory});
-    const result = try download.downloadFiles(alloc, cfg.dictionaries, cfg.dictionary_directory, true);
-    log.info("Update finished: {d}/{d}, {d} skipped. ", .{ result.downloaded, cfg.dictionaries.len, result.skipped });
+    download.downloadFiles(
+        alloc,
+        cfg.dictionaries,
+        cfg.dictionary_directory,
+        true,
+        downloadProgress,
+    ) catch |err| {
+        utils.log.err("Download failed due to {}", .{err});
+    };
+}
+
+fn downloadProgress(url: []const u8, result: download.Result) void {
+    switch (result) {
+        .Failed => utils.log.err("{s} {s}", .{ utils.fs.extractFilename(url), result.toString() }),
+        .Downloaded => utils.log.info("{s} {s}", .{ utils.fs.extractFilename(url), result.toString() }),
+        else => utils.log.debug("{s} {s}", .{ utils.fs.extractFilename(url), result.toString() }),
+    }
 }

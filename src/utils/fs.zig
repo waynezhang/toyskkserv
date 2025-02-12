@@ -131,3 +131,40 @@ test "toAbsolutePath" {
         try require.equal(expected, p);
     }
 }
+
+/// Caller own the memory
+pub fn sha256(alloc: std.mem.Allocator, path: []const u8) ![]const u8 {
+    const fullpath = try toAbsolutePath(alloc, path, ".");
+    defer alloc.free(fullpath);
+
+    const file = try std.fs.cwd().openFile(fullpath, .{});
+    defer file.close();
+
+    var hash = std.crypto.hash.sha2.Sha256.init(.{});
+
+    var buffered = std.io.bufferedReader(file.reader());
+    var buffer: [8192]u8 = undefined;
+    while (true) {
+        const len = try buffered.read(&buffer);
+        if (len == 0) {
+            break;
+        }
+        hash.update(buffer[0..len]);
+    }
+
+    var digest = hash.finalResult();
+    return try std.fmt.allocPrint(
+        alloc,
+        "{s}",
+        .{std.fmt.fmtSliceHexLower(&digest)},
+    );
+}
+
+test "sha256" {
+    const expected = "5ab8d6b1ba16dfed8ca2a5bb301b8bc703bedabcb4f460b30f2ed00021000f4a";
+
+    const sha256sum = try sha256(std.testing.allocator, "testdata/jisyo.utf8");
+    defer std.testing.allocator.free(sha256sum);
+
+    try require.equal(expected, sha256sum);
+}
