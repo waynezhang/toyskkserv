@@ -4,7 +4,6 @@ const utils = @import("../utils/utils.zig");
 const DictManager = @import("../dict.zig").DictManager;
 const google_api = @import("google_api.zig");
 const config = @import("../config.zig");
-const jdz_allocator = @import("jdz_allocator");
 
 const require = @import("protest").require;
 
