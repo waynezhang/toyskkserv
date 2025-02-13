@@ -16,12 +16,14 @@ pub fn setLevel(level: Level) void {
 }
 
 pub inline fn err(comptime format: []const u8, args: anytype) void {
-    std.debug.print(chroma.format("{red}" ++ format ++ "{reset}\n"), args);
+    if (current_level >= @intFromEnum(Level.err) and !builtin.is_test) {
+        std.debug.print(chroma.format("{red}" ++ format ++ "{reset}\n"), args);
+    }
 }
 
 pub inline fn info(comptime format: []const u8, args: anytype) void {
     if (current_level >= @intFromEnum(Level.info) and !builtin.is_test) {
-        std.debug.print(chroma.format("{green}" ++ format ++ "{reset}\n"), args);
+        std.debug.print(format ++ "\n", args);
     }
 }
 
