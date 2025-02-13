@@ -126,7 +126,9 @@ fn loadFile(allocator: std.mem.Allocator, tree: *btree.Btree(skk.Entry, void), f
     defer ite.deinit();
 
     while (try ite.next(&conv_buf)) |pair| {
-        processLine(allocator, tree, pair.key, pair.candidate);
+        processLine(allocator, tree, pair.key, pair.candidate) catch |err| {
+            utils.log.err("Failed to process line {s} due to {}", .{ pair.key, err });
+        };
     }
 }
 
@@ -171,7 +173,7 @@ test "DictManager" {
     try require.equal("/キロ/", mgr.findCandidate("1024"));
 }
 
-fn processLine(allocator: std.mem.Allocator, tree: *btree.Btree(skk.Entry, void), key: []const u8, candidate: []const u8) void {
+fn processLine(allocator: std.mem.Allocator, tree: *btree.Btree(skk.Entry, void), key: []const u8, candidate: []const u8) !void {
     const found: skk.Entry = .{
         .key = key,
         .candidate = "",
@@ -188,8 +190,8 @@ fn processLine(allocator: std.mem.Allocator, tree: *btree.Btree(skk.Entry, void)
         }
     } else {
         const ent: skk.Entry = .{
-            .key = allocator.dupe(u8, key) catch unreachable,
-            .candidate = allocator.dupe(u8, candidate) catch unreachable,
+            .key = try allocator.dupe(u8, key),
+            .candidate = try allocator.dupe(u8, candidate),
         };
 
         _ = tree.set(&ent);
@@ -221,21 +223,21 @@ test "processLine" {
         .candidate = "",
     };
     {
-        processLine(alloc, &tree, "test", "/abc/");
+        try processLine(alloc, &tree, "test", "/abc/");
 
         found.key = "test";
         const ret = tree.get(&found);
         try require.equal("/abc/", ret.?.candidate);
     }
     {
-        processLine(alloc, &tree, "test2", "/123/");
+        try processLine(alloc, &tree, "test2", "/123/");
 
         found.key = "test2";
         const ret = tree.get(&found);
         try require.equal("/123/", ret.?.candidate);
     }
     {
-        processLine(alloc, &tree, "test", "/def/");
+        try processLine(alloc, &tree, "test", "/def/");
 
         found.key = "test";
         const ret = tree.get(&found);

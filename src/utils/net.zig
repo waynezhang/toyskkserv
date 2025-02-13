@@ -45,14 +45,14 @@ test "parseAddrPort" {
     // Test full address:port
     {
         const addr = try parseAddrPort("192.168.1.1:8080");
-        const ipv4 = std.fmt.bufPrint(ipAddrBuffer[0..], "{}", .{addr}) catch unreachable;
+        const ipv4 = try std.fmt.bufPrint(ipAddrBuffer[0..], "{}", .{addr});
         try require.equal("192.168.1.1:8080", ipAddrBuffer[0..ipv4.len]);
     }
 
     // Test :port only (should default to localhost)
     {
         const addr = try parseAddrPort(":8080");
-        const ipv4 = std.fmt.bufPrint(ipAddrBuffer[0..], "{}", .{addr}) catch unreachable;
+        const ipv4 = try std.fmt.bufPrint(ipAddrBuffer[0..], "{}", .{addr});
         try require.equal("127.0.0.1:8080", ipAddrBuffer[0..ipv4.len]);
     }
 
