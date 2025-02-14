@@ -1,3 +1,20 @@
+## v0.0.7 (2025-02-15)
+
+### New feature
+
+- show download progress. colorize logs ([f6a9fef](https://github.com/waynezhang/toyskkserv/commit/f6a9fef9e0c355a0137afd150ada1780f0a01f5f))
+- support .tar.gz and .gz download ([ceea9cf](https://github.com/waynezhang/toyskkserv/commit/ceea9cf4e98585964bb1ce9076b44fc743b644be))
+
+### Fix
+
+- disable test for downloadFiles temparaly ([f93ce0b](https://github.com/waynezhang/toyskkserv/commit/f93ce0b08bc7ae977927640e9dcebfd91ebce473))
+
+### Refactor
+
+- remove version command as it shows in help command ([cce30d1](https://github.com/waynezhang/toyskkserv/commit/cce30d18b77218383bc838132b42c56bfd8a8420))
+- small fixes ([d4fad0e](https://github.com/waynezhang/toyskkserv/commit/d4fad0e31e936742b4d299931bc2d48e44be1891))
+
+
 ## 0.0.6 (2025-02-12)
 
 ### Fix
