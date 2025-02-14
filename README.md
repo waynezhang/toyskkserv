@@ -6,8 +6,8 @@ This is a rewritten of [toyskkserv-go](https://github.com/waynezhang/toyskkserv-
 
 ## Features
 
-- [x] Configurable dictionary via urls
-- [ ] Automatically dictionary update
+- [x] Configurable dictionary via urls. `.gz`, `.tar.gz` are supported.
+- [x] EUC-JIS-2004, UTF-8 dictionaries are supported.
 - [x] Google Transliterate API
 
 ## Protocol
@@ -44,13 +44,14 @@ A configuration file is required. toyskkserv tries to find `toyskkserv.zon` in t
 
 Copy [the sample file](https://github.com/waynezhang/toyskkserv/blob/main/conf/toyskkserv.zon) to the directory and start running:
 
-- `$ toyskkserv [-v] serve`
+- `$ toyskkserv serve [-v]`
 - Or `brew services start toyskkserv`
 
 ## All command
 
-- `version`: Show the version
 - `serve`: Start the server
+- `update`: Update dictionaries from internet.
+- `reload`: Tell the server to reload all dictionaries from disk
 - `--help`: Show help
 
 ## Configuration
@@ -108,10 +109,9 @@ toyskkserv returns `/ここでは/個々では/此処では/ココでは/ココ�
 
 ```
 .dictionaries = .{
-  // 基本辞書
-  "https://github.com/skk-dev/dict/raw/refs/heads/master/SKK-JISYO.L",
-  // 人名、特に日本人の姓名
-  "https://github.com/skk-dev/dict/raw/refs/heads/master/SKK-JISYO.jinmei",
+    .{ .url = "https://skk-dev.github.io/dict/SKK-JISYO.L.gz" }, // 基本辞書
+    .{ .url = "https://skk-dev.github.io/dict/zipcode.tar.gz", .files = "zipcode/SKK-JISYO.zipcode, zipcode/SKK-JISYO.office.zipcode" },
+    .{ .url = "~/skk-dict/some_dict_file" },
 },
 ```
 
