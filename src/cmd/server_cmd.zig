@@ -3,7 +3,7 @@ const Server = @import("../server/server.zig").Server;
 const config = @import("../config.zig");
 const jdz_allocator = @import("jdz_allocator");
 const utils = @import("../utils/utils.zig");
-const download = @import("../http/download.zig");
+const dict_location = @import("../dict/dict_location.zig");
 
 pub fn serve() !void {
     var jdz = jdz_allocator.JdzAllocator(.{}).init();
@@ -26,7 +26,6 @@ pub fn serve() !void {
     };
     defer {
         cfg.deinit(allocator);
-        allocator.destroy(cfg);
     }
     const fmt =
         \\Config loaded:
@@ -43,11 +42,14 @@ pub fn serve() !void {
         const download_alloc = gpa.allocator();
 
         utils.log.info("Start downloading missing dictionaries", .{});
-        if (download.downloadFiles(download_alloc, cfg.dictionaries, cfg.dictionary_directory, false)) |result| {
-            utils.log.info("Download finished: {d}/{d}, {d} skipped. ", .{ result.downloaded, cfg.dictionaries.len, result.skipped });
-        } else |err| {
+        dict_location.DictLocation.Download.downloadDicts(
+            download_alloc,
+            cfg.dictionaries,
+            cfg.dictionary_directory,
+            false,
+        ) catch |err| {
             utils.log.err("Download failed due to {}", .{err});
-        }
+        };
 
         const deinit_status = gpa.deinit();
         if (deinit_status == .leak) unreachable;

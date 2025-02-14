@@ -6,7 +6,8 @@ const euc_jp = @import("euc-jis-2004-zig");
 const handlers = @import("handlers.zig");
 const utils = @import("../utils/utils.zig");
 const version = @import("../version.zig");
-const DictManager = @import("../dict.zig").DictManager;
+const DictManager = @import("../dict/dict.zig").DictManager;
+const DictLocation = @import("../dict/dict_location.zig").DictLocation;
 
 const Context = struct {
     listen_addr: []const u8,
@@ -71,8 +72,8 @@ pub const Server = struct {
         self.allocator.destroy(self.dict_mgr);
     }
 
-    pub fn serve(self: *Self, dicts: []const []const u8) !void {
-        try self.dict_mgr.loadUrls(dicts, self.dictionary_directory);
+    pub fn serve(self: *Self, dicts: []DictLocation) !void {
+        try self.dict_mgr.loadLocations(dicts, self.dictionary_directory);
         defer self.dict_mgr.deinit();
 
         try network.init();

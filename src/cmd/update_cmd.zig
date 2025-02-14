@@ -1,6 +1,7 @@
 const std = @import("std");
 const config = @import("../config.zig");
-const download = @import("../http/download.zig");
+const utils = @import("../utils/utils.zig");
+const dict_location = @import("../dict/dict_location.zig");
 const log = std.log;
 
 pub fn updateDicts() !void {
@@ -21,6 +22,12 @@ pub fn updateDicts() !void {
     }
 
     log.info("Start updating at {s}", .{cfg.dictionary_directory});
-    const result = try download.downloadFiles(alloc, cfg.dictionaries, cfg.dictionary_directory, true);
-    log.info("Update finished: {d}/{d}, {d} skipped. ", .{ result.downloaded, cfg.dictionaries.len, result.skipped });
+    dict_location.DictLocation.Download.downloadDicts(
+        alloc,
+        cfg.dictionaries,
+        cfg.dictionary_directory,
+        true,
+    ) catch |err| {
+        utils.log.err("Download failed due to {}", .{err});
+    };
 }

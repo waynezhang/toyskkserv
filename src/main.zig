@@ -1,9 +1,9 @@
 const std = @import("std");
 const cli = @import("zig-cli");
 const builtin = @import("builtin");
-const ver = @import("version.zig");
-const update = @import("cmd/update_cmd.zig");
-const server = @import("cmd/server_cmd.zig");
+const version = @import("version.zig");
+const update_cmd = @import("cmd/update_cmd.zig");
+const server_cmd = @import("cmd/server_cmd.zig");
 const reload = @import("cmd/reload.zig");
 
 pub const std_options = .{
@@ -46,7 +46,15 @@ pub fn main() !void {
                             .one_line = "Force re-download all dictionaires",
                         },
                         .target = cli.CommandTarget{
-                            .action = cli.CommandAction{ .exec = update.updateDicts },
+                            .action = cli.CommandAction{ .exec = update },
+                        },
+                        .options = &[_]cli.Option{
+                            .{
+                                .long_name = "verbose",
+                                .short_alias = 'v',
+                                .help = "Enable more output",
+                                .value_ref = r.mkRef(&verbose),
+                            },
                         },
                     },
                     .{
@@ -58,17 +66,12 @@ pub fn main() !void {
                             .action = cli.CommandAction{ .exec = reload.reload },
                         },
                     },
-                    .{
-                        .name = "version",
-                        .description = .{
-                            .one_line = "Show skkserv version",
-                        },
-                        .target = cli.CommandTarget{
-                            .action = cli.CommandAction{ .exec = ver.showVersion },
-                        },
-                    },
                 },
             },
+        },
+        .version = version.Version,
+        .help_config = .{
+            .color_usage = .never,
         },
     };
     return r.run(&app);
@@ -78,5 +81,12 @@ fn serve() !void {
     if (verbose) {
         @import("utils/utils.zig").log.setLevel(.debug);
     }
-    try server.serve();
+    try server_cmd.serve();
+}
+
+fn update() !void {
+    if (verbose) {
+        @import("utils/utils.zig").log.setLevel(.debug);
+    }
+    try update_cmd.updateDicts();
 }
