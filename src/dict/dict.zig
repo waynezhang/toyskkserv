@@ -1,7 +1,9 @@
 const std = @import("std");
 const btree = @import("btree-zig");
-const skk = @import("skk/skk.zig");
-const utils = @import("utils/utils.zig");
+
+const DictLocation = @import("dict_location.zig").DictLocation;
+const skk = @import("../skk/skk.zig");
+const utils = @import("../utils/utils.zig");
 
 const require = @import("protest").require;
 
@@ -25,13 +27,13 @@ pub const DictManager = struct {
         self.allocator.destroy(self.tree);
     }
 
-    pub fn reloadUrls(self: *@This(), urls: []const []const u8, dictionary_path: []const u8) !void {
+    pub fn reloadLocations(self: *@This(), locations: []const DictLocation, dictionary_path: []const u8) !void {
         clearBtree(self.allocator, self.tree);
-        try self.loadUrls(urls, dictionary_path);
+        try self.loadLocations(locations, dictionary_path);
     }
 
-    pub fn loadUrls(self: *@This(), urls: []const []const u8, dictionary_path: []const u8) !void {
-        const files = try utils.url.translateUrlsToFiles(self.allocator, urls, dictionary_path);
+    pub fn loadLocations(self: *@This(), locations: []const DictLocation, dictionary_path: []const u8) !void {
+        const files = try DictLocation.fileList(self.allocator, locations, dictionary_path);
         defer {
             for (files) |f| {
                 self.allocator.free(f);
@@ -117,7 +119,7 @@ pub const DictManager = struct {
 };
 
 fn loadFile(allocator: std.mem.Allocator, tree: *btree.Btree(skk.Entry, void), filename: []const u8) !void {
-    utils.log.debug("Processing file {s}", .{utils.fs.extractFilename(filename)});
+    utils.log.debug("Processing file {s}", .{std.fs.path.basename(filename)});
 
     var line_buf = [_]u8{0} ** 4096;
     var conv_buf = [_]u8{0} ** 4096;
@@ -146,9 +148,13 @@ test "DictManager" {
     var mgr = try DictManager.init(alloc);
     defer mgr.deinit();
 
-    try mgr.loadUrls(&[_][]const u8{
-        url,
-    }, path);
+    const locations: []const DictLocation = &.{
+        .{
+            .url = url,
+            .files = &.{},
+        },
+    };
+    try mgr.loadLocations(locations, path);
 
     try require.equal("", mgr.findCandidate(""));
     try require.equal("/キロ/", mgr.findCandidate("1024"));
@@ -166,10 +172,10 @@ test "DictManager" {
     }
 
     // reload
-    try mgr.reloadUrls(&[_][]const u8{}, path);
+    try mgr.reloadLocations(&[_]DictLocation{}, path);
     try require.equal("", mgr.findCandidate("1024"));
 
-    try mgr.reloadUrls(&[_][]const u8{url}, path);
+    try mgr.reloadLocations(locations, path);
     try require.equal("/キロ/", mgr.findCandidate("1024"));
 }
 

@@ -1,43 +1,36 @@
 const std = @import("std");
 const zgf = @import("zon_get_fields");
 const utils = @import("utils/utils.zig");
+const DictLocation = @import("dict/dict_location.zig").DictLocation;
 
 const require = @import("protest").require;
 
 pub const Config = struct {
-    dictionary_directory: []const u8,
-    listen_addr: []const u8,
+    dictionary_directory: []const u8 = &.{},
+    listen_addr: []const u8 = &.{},
     fallback_to_google: bool = false,
-    dictionaries: []const []const u8 = undefined,
-    update_schedule: []const u8,
+    dictionaries: []DictLocation = &.{},
+    update_schedule: []const u8 = &.{},
 
-    pub fn init(allocator: std.mem.Allocator, ast: std.zig.Ast) !Config {
-        var cfg = Config{
-            .dictionary_directory = undefined,
-            .listen_addr = undefined,
-            .fallback_to_google = true,
-            .update_schedule = undefined,
-            .dictionaries = undefined,
-        };
+    pub fn init(alloc: std.mem.Allocator, ast: std.zig.Ast) !Config {
+        var cfg = Config{};
 
-        cfg.dictionary_directory = try allocator.dupe(u8, zgf.getFieldVal([]const u8, ast, "dictionary_directory") catch "./toyskkserv-cache");
-        cfg.listen_addr = try allocator.dupe(u8, zgf.getFieldVal([]const u8, ast, "listen_addr") catch "127.0.0.1:1178");
-        cfg.update_schedule = try allocator.dupe(u8, zgf.getFieldVal([]const u8, ast, "update_schedule") catch "");
+        cfg.dictionary_directory = try utils.fs.toAbsolutePath(
+            alloc,
+            zgf.getFieldVal([]const u8, ast, "dictionary_directory") catch "./toyskkserv-cache",
+            null,
+        );
+        cfg.listen_addr = try alloc.dupe(u8, zgf.getFieldVal([]const u8, ast, "listen_addr") catch "127.0.0.1:1178");
+        cfg.fallback_to_google = zgf.getFieldVal(bool, ast, "fallback_to_google") catch false;
 
-        var dict_arr = std.ArrayList([]const u8).init(allocator);
+        var dict_arr = std.ArrayList(DictLocation).init(alloc);
         defer dict_arr.deinit();
 
-        const buf = try allocator.alloc(u8, 48);
-        defer allocator.free(buf);
-        var i: i16 = 0;
+        var idx: i16 = 0;
         while (true) {
-            const slice = try std.fmt.bufPrint(buf[0..], "dictionaries[{d}]", .{i});
-            if (zgf.getFieldVal([]const u8, ast, slice)) |dict| {
-                try dict_arr.append(try allocator.dupe(u8, dict));
-            } else |_| {
-                break;
-            }
-            i = i + 1;
+            const location = loadDictLocation(alloc, ast, idx) catch break;
+            try dict_arr.append(location);
+            idx += 1;
         }
         cfg.dictionaries = try dict_arr.toOwnedSlice();
 
@@ -49,11 +42,38 @@ pub const Config = struct {
         allocator.free(self.listen_addr);
         allocator.free(self.update_schedule);
         for (self.dictionaries) |d| {
-            allocator.free(d);
+            allocator.free(d.url);
+            for (d.files) |f| {
+                allocator.free(f);
+            }
+            allocator.free(d.files);
         }
         allocator.free(self.dictionaries);
     }
 };
+
+fn loadDictLocation(alloc: std.mem.Allocator, ast: std.zig.Ast, index: i16) !DictLocation {
+    const buf = try alloc.alloc(u8, 1024);
+    defer alloc.free(buf);
+
+    const key = try std.fmt.bufPrint(buf[0..], "dictionaries[{d}].url", .{index});
+    const url = try zgf.getFieldVal([]const u8, ast, key);
+
+    var file_arr = std.ArrayList([]const u8).init(alloc);
+    defer file_arr.deinit();
+
+    const file_key = try std.fmt.bufPrint(buf[0..], "dictionaries[{d}].files", .{index});
+    if (zgf.getFieldVal([]const u8, ast, file_key)) |files| {
+        var ite = std.mem.splitScalar(u8, files, ',');
+        while (ite.next()) |file| {
+            try file_arr.append(try alloc.dupe(u8, std.mem.trim(u8, file, " ")));
+        }
+    } else |_| {}
+    return .{
+        .url = try alloc.dupe(u8, url),
+        .files = try file_arr.toOwnedSlice(),
+    };
+}
 
 pub fn loadConfig(alloc: std.mem.Allocator) !*Config {
     const config_files = [_][]const u8{
@@ -99,11 +119,14 @@ test "config" {
         alloc.destroy(cfg);
     }
 
-    try require.equal("./dict_cache", cfg.dictionary_directory);
+    try require.isTrue(std.mem.endsWith(u8, cfg.dictionary_directory, "dict_cache"));
+    try require.isTrue(std.fs.path.isAbsolute(cfg.dictionary_directory));
     try require.equal("127.0.0.1:1178", cfg.listen_addr);
     try require.isTrue(cfg.fallback_to_google);
-    try require.equal("monthly", cfg.update_schedule);
 
-    try require.equal("url", cfg.dictionaries[0]);
-    try require.equal("path", cfg.dictionaries[1]);
+    try require.equal("https://someurl", cfg.dictionaries[0].url);
+    try require.equal("https://someurl.gz", cfg.dictionaries[1].url);
+    try require.equal("https://abc.tar.gz", cfg.dictionaries[2].url);
+    try require.equal("dir/file_a", cfg.dictionaries[2].files[0]);
+    try require.equal("dir/file_b", cfg.dictionaries[2].files[1]);
 }

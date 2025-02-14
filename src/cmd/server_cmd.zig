@@ -3,7 +3,7 @@ const Server = @import("../server/server.zig").Server;
 const config = @import("../config.zig");
 const jdz_allocator = @import("jdz_allocator");
 const utils = @import("../utils/utils.zig");
-const download = @import("../http/download.zig");
+const dict_location = @import("../dict/dict_location.zig");
 
 pub fn serve() !void {
     var jdz = jdz_allocator.JdzAllocator(.{}).init();
@@ -26,7 +26,6 @@ pub fn serve() !void {
     };
     defer {
         cfg.deinit(allocator);
-        allocator.destroy(cfg);
     }
     const fmt =
         \\Config loaded:
@@ -43,12 +42,11 @@ pub fn serve() !void {
         const download_alloc = gpa.allocator();
 
         utils.log.info("Start downloading missing dictionaries", .{});
-        download.downloadFiles(
+        dict_location.DictLocation.Download.downloadDicts(
             download_alloc,
             cfg.dictionaries,
             cfg.dictionary_directory,
             false,
-            downloadProgress,
         ) catch |err| {
             utils.log.err("Download failed due to {}", .{err});
         };
@@ -72,8 +70,4 @@ pub fn serve() !void {
         utils.log.err("Failed to start server due to {}", .{err});
     };
     utils.log.info("Server exited", .{});
-}
-
-fn downloadProgress(url: []const u8, result: download.Result) void {
-    utils.log.debug("{s} {s}", .{ utils.fs.extractFilename(url), result.toString() });
 }

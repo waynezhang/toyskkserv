@@ -4,7 +4,8 @@
     .fallback_to_google = true,
     .update_schedule = "monthly",
     .dictionaries = .{
-        "url",
-        "path",
+        .{ .url = "https://someurl" },
+        .{ .url = "https://someurl.gz" },
+        .{ .url = "https://abc.tar.gz", .files = "dir/file_a, dir/file_b" },
     },
 }

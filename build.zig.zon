@@ -59,6 +59,10 @@
             .url = "git+https://github.com/adia-dev/chroma-zig#c8cd1144aa800f87db3c4bee3d1f0fa0e8c96feb",
             .hash = "12209a8a991121bba3b21f31d275588690dc7c0d7fa9c361fd892e782dd88e0fb2ba",
         },
+        .temp = .{
+            .url = "git+https://github.com/abhinav/temp.zig#6c02e98497b32c78fb67db576dcbc9b1c42c1a04",
+            .hash = "122095027cb551451a12706f958487bacc9bec1dfcd8c6bdacff890fb8d641755a58",
+        },
     },
     .paths = .{
         "build.zig",

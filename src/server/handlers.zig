@@ -1,7 +1,8 @@
 const std = @import("std");
 const resp = @import("response.zig");
 const utils = @import("../utils/utils.zig");
-const DictManager = @import("../dict.zig").DictManager;
+const DictManager = @import("../dict/dict.zig").DictManager;
+const DictLocation = @import("../dict/dict_location.zig").DictLocation;
 const google_api = @import("google_api.zig");
 const config = @import("../config.zig");
 
@@ -96,9 +97,10 @@ test "CandidateHandler" {
     var mgr = try DictManager.init(alloc);
     defer mgr.deinit();
 
-    try mgr.loadUrls(&[_][]const u8{
-        "testdata/jisyo.utf8",
-    }, "");
+    const locations: []const DictLocation = &.{
+        .{ .url = "testdata/jisyo.utf8", .files = &.{} },
+    };
+    try mgr.loadLocations(locations, ".");
 
     var arr = std.ArrayList(u8).init(alloc);
     defer arr.deinit();
@@ -145,9 +147,10 @@ test "CompletionHandler" {
     var mgr = try DictManager.init(alloc);
     defer mgr.deinit();
 
-    try mgr.loadUrls(&[_][]const u8{
-        "testdata/jisyo.utf8",
-    }, "");
+    const locations: []const DictLocation = &.{
+        .{ .url = "testdata/jisyo.utf8", .files = &.{} },
+    };
+    try mgr.loadLocations(locations, ".");
 
     var arr = std.ArrayList(u8).init(alloc);
     defer arr.deinit();
@@ -225,6 +228,6 @@ pub const CustomProtocolHandler = struct {
     }
 };
 
-fn reloadDicts(dict_mgr: *DictManager, dicts: []const []const u8, dictionary_path: []const u8) !void {
-    try dict_mgr.reloadUrls(dicts, dictionary_path);
+fn reloadDicts(dict_mgr: *DictManager, dicts: []DictLocation, dictionary_path: []const u8) !void {
+    try dict_mgr.reloadLocations(dicts, dictionary_path);
 }
