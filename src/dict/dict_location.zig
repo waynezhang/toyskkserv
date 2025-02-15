@@ -1,15 +1,13 @@
 const std = @import("std");
-const temp = @import("temp");
-
 const utils = @import("../utils/utils.zig");
 
 const require = @import("protest").require;
 
-pub const DictLocation = struct {
+pub const Location = struct {
     url: []const u8,
     files: []const []const u8,
 
-    pub fn fileList(alloc: std.mem.Allocator, locations: []const DictLocation, base_path: []const u8) ![]const []const u8 {
+    pub fn fileList(alloc: std.mem.Allocator, locations: []const Location, base_path: []const u8) ![]const []const u8 {
         var arr = std.ArrayList([]const u8).init(alloc);
         defer arr.deinit();
 
@@ -39,7 +37,7 @@ pub const DictLocation = struct {
         const home = try utils.fs.expandTilde(alloc, "~");
         defer alloc.free(home);
 
-        const locations: []const DictLocation = &.{
+        const locations: []const Location = &.{
             .{ .url = "http://abc.com/test01.txt", .files = &.{} },
             .{ .url = "http://abc.com/test02.txt", .files = &.{} },
             .{ .url = "test03.txt", .files = &.{} },
@@ -49,7 +47,7 @@ pub const DictLocation = struct {
             .{ .url = "http://abc.com/test07.tar.gz", .files = &.{ "test07-01.txt", "test07-02.txt" } },
         };
 
-        const translated = try DictLocation.fileList(alloc, locations, cwd);
+        const translated = try Location.fileList(alloc, locations, cwd);
         defer {
             for (translated) |t| alloc.free(t);
             alloc.free(translated);
@@ -108,7 +106,7 @@ pub const DictLocation = struct {
         /// Note: jdz allocator is casuing crash.
         pub fn downloadDicts(
             alloc: std.mem.Allocator,
-            locations: []const DictLocation,
+            locations: []const Location,
             base_path: []const u8,
             force_download: bool,
         ) !void {
@@ -157,7 +155,7 @@ pub const DictLocation = struct {
             const path = try tmp.dir.realpathAlloc(alloc, ".");
             defer alloc.free(path);
 
-            const locations: []const DictLocation = &.{
+            const locations: []const Location = &.{
                 .{ .url = "https://github.com/uasi/skk-emoji-jisyo/raw/refs/heads/master/SKK-JISYO.emoji.utf8", .files = &.{} },
                 .{ .url = "https://skk-dev.github.io/dict/SKK-JISYO.itaiji.JIS3_4.gz", .files = &.{} },
                 .{ .url = "https://skk-dev.github.io/dict/SKK-JISYO.edict.tar.gz", .files = &.{"SKK-JISYO.edict"} },
@@ -178,7 +176,7 @@ pub const DictLocation = struct {
     };
 };
 
-fn shouldSkip(alloc: std.mem.Allocator, loc: DictLocation, base_path: []const u8, force_download: bool) !bool {
+fn shouldSkip(alloc: std.mem.Allocator, loc: Location, base_path: []const u8, force_download: bool) !bool {
     if (!utils.url.isHttpUrl(loc.url)) {
         return true;
     }
@@ -216,40 +214,40 @@ fn shouldSkip(alloc: std.mem.Allocator, loc: DictLocation, base_path: []const u8
 test "shouldSkip" {
     const alloc = std.testing.allocator;
     {
-        const loc: DictLocation = .{ .url = "/tmp/filepath", .files = &.{} };
+        const loc: Location = .{ .url = "/tmp/filepath", .files = &.{} };
         try require.isTrue(try shouldSkip(alloc, loc, ".", true));
         try require.isTrue(try shouldSkip(alloc, loc, ".", false));
     }
     {
-        const loc: DictLocation = .{ .url = "https://abc.com/path/testdata/jisyo.utf8", .files = &.{} };
+        const loc: Location = .{ .url = "https://abc.com/path/testdata/jisyo.utf8", .files = &.{} };
         try require.isTrue(try shouldSkip(alloc, loc, "testdata", false));
         try require.isFalse(try shouldSkip(alloc, loc, "testdata", true));
     }
     {
-        const loc: DictLocation = .{ .url = "https://abc.com/path/testdata/jisyo-notexisting.utf8", .files = &.{} };
+        const loc: Location = .{ .url = "https://abc.com/path/testdata/jisyo-notexisting.utf8", .files = &.{} };
         try require.isFalse(try shouldSkip(alloc, loc, "testdata", false));
     }
     {
-        const loc: DictLocation = .{ .url = "https://abc.com/path/testdata/jisyo.utf8.gz", .files = &.{} };
+        const loc: Location = .{ .url = "https://abc.com/path/testdata/jisyo.utf8.gz", .files = &.{} };
         try require.isTrue(try shouldSkip(alloc, loc, "testdata", false));
         try require.isFalse(try shouldSkip(alloc, loc, "testdata", true));
     }
     {
-        const loc: DictLocation = .{ .url = "https://abc.com/path/testdata/jisyo-notexisting.utf8.gz", .files = &.{} };
+        const loc: Location = .{ .url = "https://abc.com/path/testdata/jisyo-notexisting.utf8.gz", .files = &.{} };
         try require.isFalse(try shouldSkip(alloc, loc, "testdata", false));
     }
     {
-        const loc: DictLocation = .{ .url = "https://abc.com/path/testdata/somefile.tar.gz", .files = &.{"jisyo.utf8"} };
+        const loc: Location = .{ .url = "https://abc.com/path/testdata/somefile.tar.gz", .files = &.{"jisyo.utf8"} };
         try require.isTrue(try shouldSkip(alloc, loc, "testdata", false));
         try require.isFalse(try shouldSkip(alloc, loc, "testdata", true));
     }
     {
-        const loc: DictLocation = .{ .url = "https://abc.com/path/testdata/somefile.tar.gz", .files = &.{"jisyo.utf8,notexisting.utf8"} };
+        const loc: Location = .{ .url = "https://abc.com/path/testdata/somefile.tar.gz", .files = &.{"jisyo.utf8,notexisting.utf8"} };
         try require.isFalse(try shouldSkip(alloc, loc, "testdata", false));
     }
 }
 
-fn downloadDictionary(alloc: std.mem.Allocator, loc: DictLocation, base_path: []const u8, progress: DictLocation.Download.ProgressFn) void {
+fn downloadDictionary(alloc: std.mem.Allocator, loc: Location, base_path: []const u8, progress: Location.Download.ProgressFn) void {
     if (!utils.url.isHttpUrl(loc.url)) {
         unreachable;
     }
@@ -333,7 +331,7 @@ fn downloadDictionary(alloc: std.mem.Allocator, loc: DictLocation, base_path: []
     checkAndUpdateFile(alloc, url, tmpFile.path, existing_path, "", progress);
 }
 
-fn checkAndUpdateFile(alloc: std.mem.Allocator, url: []const u8, src_file: []const u8, dst_file: []const u8, subFile: []const u8, progress: DictLocation.Download.ProgressFn) void {
+fn checkAndUpdateFile(alloc: std.mem.Allocator, url: []const u8, src_file: []const u8, dst_file: []const u8, subFile: []const u8, progress: Location.Download.ProgressFn) void {
     const updated = utils.fs.IsDiff(alloc, src_file, dst_file);
     if (updated) {
         if (std.fs.renameAbsolute(src_file, dst_file)) {
@@ -350,14 +348,14 @@ test "checkAndUpdateFile" {
     const alloc = std.testing.allocator;
 
     const downloadProgress = struct {
-        fn log(_: []const u8, _: []const u8, result: DictLocation.Download.Result) void {
-            require.equal(DictLocation.Download.Result.Downloaded, result) catch unreachable;
+        fn log(_: []const u8, _: []const u8, result: Location.Download.Result) void {
+            require.equal(Location.Download.Result.Downloaded, result) catch unreachable;
         }
     }.log;
 
     const notUpdatedProgress = struct {
-        fn log(_: []const u8, _: []const u8, result: DictLocation.Download.Result) void {
-            require.equal(DictLocation.Download.Result.NotUpdated, result) catch unreachable;
+        fn log(_: []const u8, _: []const u8, result: Location.Download.Result) void {
+            require.equal(Location.Download.Result.NotUpdated, result) catch unreachable;
         }
     }.log;
 

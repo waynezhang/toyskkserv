@@ -1,7 +1,7 @@
 const std = @import("std");
 const btree = @import("btree-zig");
 
-const DictLocation = @import("dict_location.zig").DictLocation;
+const Location = @import("dict_location.zig").Location;
 const skk = @import("../skk/skk.zig");
 const utils = @import("../utils/utils.zig");
 
@@ -27,13 +27,13 @@ pub const DictManager = struct {
         self.allocator.destroy(self.tree);
     }
 
-    pub fn reloadLocations(self: *@This(), locations: []const DictLocation, dictionary_path: []const u8) !void {
+    pub fn reloadLocations(self: *@This(), locations: []const Location, dictionary_path: []const u8) !void {
         clearBtree(self.allocator, self.tree);
         try self.loadLocations(locations, dictionary_path);
     }
 
-    pub fn loadLocations(self: *@This(), locations: []const DictLocation, dictionary_path: []const u8) !void {
-        const files = try DictLocation.fileList(self.allocator, locations, dictionary_path);
+    pub fn loadLocations(self: *@This(), locations: []const Location, dictionary_path: []const u8) !void {
+        const files = try Location.fileList(self.allocator, locations, dictionary_path);
         defer {
             for (files) |f| {
                 self.allocator.free(f);
@@ -148,7 +148,7 @@ test "DictManager" {
     var mgr = try DictManager.init(alloc);
     defer mgr.deinit();
 
-    const locations: []const DictLocation = &.{
+    const locations: []const Location = &.{
         .{
             .url = url,
             .files = &.{},
@@ -172,7 +172,7 @@ test "DictManager" {
     }
 
     // reload
-    try mgr.reloadLocations(&[_]DictLocation{}, path);
+    try mgr.reloadLocations(&[_]Location{}, path);
     try require.equal("", mgr.findCandidate("1024"));
 
     try mgr.reloadLocations(locations, path);
