@@ -1,7 +1,7 @@
 const std = @import("std");
 const zgf = @import("zon_get_fields");
 const utils = @import("utils/utils.zig");
-const DictLocation = @import("dict/dict_location.zig").DictLocation;
+const Location = @import("dict/dict_location.zig").Location;
 
 const require = @import("protest").require;
 
@@ -9,7 +9,7 @@ pub const Config = struct {
     dictionary_directory: []const u8 = &.{},
     listen_addr: []const u8 = &.{},
     fallback_to_google: bool = false,
-    dictionaries: []DictLocation = &.{},
+    dictionaries: []Location = &.{},
     update_schedule: []const u8 = &.{},
 
     pub fn init(alloc: std.mem.Allocator, ast: std.zig.Ast) !Config {
@@ -23,12 +23,12 @@ pub const Config = struct {
         cfg.listen_addr = try alloc.dupe(u8, zgf.getFieldVal([]const u8, ast, "listen_addr") catch "127.0.0.1:1178");
         cfg.fallback_to_google = zgf.getFieldVal(bool, ast, "fallback_to_google") catch false;
 
-        var dict_arr = std.ArrayList(DictLocation).init(alloc);
+        var dict_arr = std.ArrayList(Location).init(alloc);
         defer dict_arr.deinit();
 
         var idx: i16 = 0;
         while (true) {
-            const location = loadDictLocation(alloc, ast, idx) catch break;
+            const location = loadLocation(alloc, ast, idx) catch break;
             try dict_arr.append(location);
             idx += 1;
         }
@@ -52,7 +52,7 @@ pub const Config = struct {
     }
 };
 
-fn loadDictLocation(alloc: std.mem.Allocator, ast: std.zig.Ast, index: i16) !DictLocation {
+fn loadLocation(alloc: std.mem.Allocator, ast: std.zig.Ast, index: i16) !Location {
     const buf = try alloc.alloc(u8, 1024);
     defer alloc.free(buf);
 
@@ -124,9 +124,9 @@ test "config" {
     try require.equal("127.0.0.1:1178", cfg.listen_addr);
     try require.isTrue(cfg.fallback_to_google);
 
-    try require.equal("https://someurl", cfg.dictionaries[0].url);
-    try require.equal("https://someurl.gz", cfg.dictionaries[1].url);
-    try require.equal("https://abc.tar.gz", cfg.dictionaries[2].url);
-    try require.equal("dir/file_a", cfg.dictionaries[2].files[0]);
-    try require.equal("dir/file_b", cfg.dictionaries[2].files[1]);
+    try require.equal("https://skk-dev.github.io/dict/SKK-JISYO.L.gz", cfg.dictionaries[0].url);
+    // ...
+    try require.equal("https://skk-dev.github.io/dict/zipcode.tar.gz", cfg.dictionaries[18].url);
+    try require.equal("zipcode/SKK-JISYO.zipcode", cfg.dictionaries[18].files[0]);
+    try require.equal("zipcode/SKK-JISYO.office.zipcode", cfg.dictionaries[18].files[1]);
 }

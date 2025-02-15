@@ -2,7 +2,7 @@ const std = @import("std");
 const resp = @import("response.zig");
 const utils = @import("../utils/utils.zig");
 const DictManager = @import("../dict/dict.zig").DictManager;
-const DictLocation = @import("../dict/dict_location.zig").DictLocation;
+const Location = @import("../dict/dict_location.zig").Location;
 const google_api = @import("google_api.zig");
 const config = @import("../config.zig");
 
@@ -97,7 +97,7 @@ test "CandidateHandler" {
     var mgr = try DictManager.init(alloc);
     defer mgr.deinit();
 
-    const locations: []const DictLocation = &.{
+    const locations: []const Location = &.{
         .{ .url = "testdata/jisyo.utf8", .files = &.{} },
     };
     try mgr.loadLocations(locations, ".");
@@ -147,7 +147,7 @@ test "CompletionHandler" {
     var mgr = try DictManager.init(alloc);
     defer mgr.deinit();
 
-    const locations: []const DictLocation = &.{
+    const locations: []const Location = &.{
         .{ .url = "testdata/jisyo.utf8", .files = &.{} },
     };
     try mgr.loadLocations(locations, ".");
@@ -228,6 +228,6 @@ pub const CustomProtocolHandler = struct {
     }
 };
 
-fn reloadDicts(dict_mgr: *DictManager, dicts: []DictLocation, dictionary_path: []const u8) !void {
+fn reloadDicts(dict_mgr: *DictManager, dicts: []Location, dictionary_path: []const u8) !void {
     try dict_mgr.reloadLocations(dicts, dictionary_path);
 }

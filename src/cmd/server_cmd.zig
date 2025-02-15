@@ -42,7 +42,7 @@ pub fn serve() !void {
         const download_alloc = gpa.allocator();
 
         utils.log.info("Start downloading missing dictionaries", .{});
-        dict_location.DictLocation.Download.downloadDicts(
+        dict_location.downloadDicts(
             download_alloc,
             cfg.dictionaries,
             cfg.dictionary_directory,

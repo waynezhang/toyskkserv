@@ -2,10 +2,29 @@
     .dictionary_directory = "./dict_cache",
     .listen_addr = "127.0.0.1:1178",
     .fallback_to_google = true,
-    .update_schedule = "monthly",
     .dictionaries = .{
-        .{ .url = "https://someurl" },
-        .{ .url = "https://someurl.gz" },
-        .{ .url = "https://abc.tar.gz", .files = "dir/file_a, dir/file_b" },
+        .{ .url = "https://skk-dev.github.io/dict/SKK-JISYO.L.gz" }, // 基本辞書
+        .{ .url = "https://skk-dev.github.io/dict/SKK-JISYO.jinmei.gz" }, // 人名、特に日本人の姓名
+        .{ .url = "https://skk-dev.github.io/dict/SKK-JISYO.geo.gz" }, // 日本郵便株式会社データ
+        .{ .url = "https://skk-dev.github.io/dict/SKK-JISYO.propernoun.gz" }, // 芸能・音楽・企業・アニメなど
+        .{ .url = "https://skk-dev.github.io/dict/SKK-JISYO.station.gz" }, // 駅名・路線名・鉄道会社名およびその他の鉄道用語の専門辞書
+        // # プラス
+        .{ .url = "https://skk-dev.github.io/dict/SKK-JISYO.fullname.gz" }, // 人名録。姓と名に分離したものは SKK-JISYO.jinmei に
+        .{ .url = "https://skk-dev.github.io/dict/SKK-JISYO.law.gz" }, // 法律用語電子化辞書
+        .{ .url = "https://skk-dev.github.io/dict/SKK-JISYO.okinawa.gz" }, // 沖縄辞書
+        .{ .url = "https://skk-dev.github.io/dict/SKK-JISYO.china_taiwan.gz" }, // 中国、台湾の地名
+        // # 特殊変換
+        .{ .url = "https://skk-dev.github.io/dict/SKK-JISYO.assoc.gz" }, // 見出し語と候補との間に一定の連想関係があるエントリ。大量の略語を含んでいる。
+        // 特殊
+        .{ .url = "https://skk-dev.github.io/dict/SKK-JISYO.JIS2.gz" }, // JIS 第二水準の文字
+        .{ .url = "https://skk-dev.github.io/dict/SKK-JISYO.JIS3_4.gz" }, // JIS 第三、第四水準の文字
+        .{ .url = "https://skk-dev.github.io/dict/SKK-JISYO.JIS2004.gz" }, // JIS X 0213 の 2004 年改正で追加された「表外漢字 UCS 互換」10 文字
+        .{ .url = "https://skk-dev.github.io/dict/SKK-JISYO.itaiji.gz" }, // 異体字変換
+        .{ .url = "https://skk-dev.github.io/dict/SKK-JISYO.itaiji.JIS3_4.gz" }, // itaiji の JIS 第３・第４水準版
+        .{ .url = "https://skk-dev.github.io/dict/SKK-JISYO.mazegaki.gz" }, // 交ぜ書き
+        // # 編纂
+        .{ .url = "https://skk-dev.github.io/dict/SKK-JISYO.wrong.annotated.gz" }, // 間違えて含まれていたエントリ
+        .{ .url = "https://skk-dev.github.io/dict/SKK-JISYO.edict.tar.gz", .files = "SKK-JISYO.edict" }, // abbrev
+        .{ .url = "https://skk-dev.github.io/dict/zipcode.tar.gz", .files = "zipcode/SKK-JISYO.zipcode, zipcode/SKK-JISYO.office.zipcode" },
     },
 }

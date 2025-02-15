@@ -7,7 +7,7 @@ const handlers = @import("handlers.zig");
 const utils = @import("../utils/utils.zig");
 const version = @import("../version.zig");
 const DictManager = @import("../dict/dict.zig").DictManager;
-const DictLocation = @import("../dict/dict_location.zig").DictLocation;
+const Location = @import("../dict/dict_location.zig").Location;
 
 const Context = struct {
     listen_addr: []const u8,
@@ -72,7 +72,7 @@ pub const Server = struct {
         self.allocator.destroy(self.dict_mgr);
     }
 
-    pub fn serve(self: *Self, dicts: []DictLocation) !void {
+    pub fn serve(self: *Self, dicts: []Location) !void {
         try self.dict_mgr.loadLocations(dicts, self.dictionary_directory);
         defer self.dict_mgr.deinit();
 

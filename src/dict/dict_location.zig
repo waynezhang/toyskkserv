@@ -1,15 +1,12 @@
 const std = @import("std");
-const temp = @import("temp");
-
 const utils = @import("../utils/utils.zig");
-
 const require = @import("protest").require;
 
-pub const DictLocation = struct {
+pub const Location = struct {
     url: []const u8,
     files: []const []const u8,
 
-    pub fn fileList(alloc: std.mem.Allocator, locations: []const DictLocation, base_path: []const u8) ![]const []const u8 {
+    pub fn fileList(alloc: std.mem.Allocator, locations: []const Location, base_path: []const u8) ![]const []const u8 {
         var arr = std.ArrayList([]const u8).init(alloc);
         defer arr.deinit();
 
@@ -39,7 +36,7 @@ pub const DictLocation = struct {
         const home = try utils.fs.expandTilde(alloc, "~");
         defer alloc.free(home);
 
-        const locations: []const DictLocation = &.{
+        const locations: []const Location = &.{
             .{ .url = "http://abc.com/test01.txt", .files = &.{} },
             .{ .url = "http://abc.com/test02.txt", .files = &.{} },
             .{ .url = "test03.txt", .files = &.{} },
@@ -49,7 +46,7 @@ pub const DictLocation = struct {
             .{ .url = "http://abc.com/test07.tar.gz", .files = &.{ "test07-01.txt", "test07-02.txt" } },
         };
 
-        const translated = try DictLocation.fileList(alloc, locations, cwd);
+        const translated = try Location.fileList(alloc, locations, cwd);
         defer {
             for (translated) |t| alloc.free(t);
             alloc.free(translated);
@@ -94,91 +91,227 @@ pub const DictLocation = struct {
             try require.equal(p, translated[7]);
         }
     }
-
-    pub const Download = struct {
-        const Result = enum {
-            Downloaded,
-            Skipped,
-            Failed,
-            NotUpdated,
-        };
-
-        const ProgressFn = fn (url: []const u8, subFile: []const u8, result: Result) void;
-
-        /// Note: jdz allocator is casuing crash.
-        pub fn downloadDicts(
-            alloc: std.mem.Allocator,
-            locations: []const DictLocation,
-            base_path: []const u8,
-            force_download: bool,
-        ) !void {
-            const progress = struct {
-                fn log(url: []const u8, subFile: []const u8, result: Result) void {
-                    const filename = std.mem.trimRight(u8, std.mem.trimRight(u8, std.fs.path.basename(url), ".gz"), ".tar");
-
-                    switch (result) {
-                        .Failed => utils.log.err("{s}{s} failed", .{ filename, subFile }),
-                        .Downloaded => utils.log.info("{s}{s} downloaded", .{ filename, subFile }),
-                        .NotUpdated => utils.log.debug("{s}{s} not updated", .{ filename, subFile }),
-                        .Skipped => utils.log.debug("{s}{s} skipped", .{ filename, subFile }),
-                    }
-                }
-            }.log;
-
-            const abs_base_path = try utils.fs.toAbsolutePath(alloc, base_path, null);
-            defer alloc.free(abs_base_path);
-
-            std.fs.cwd().makeDir(abs_base_path) catch |err| switch (err) {
-                error.PathAlreadyExists => {},
-                else => {
-                    return err;
-                },
-            };
-
-            for (locations) |loc| {
-                if (shouldSkip(alloc, loc, base_path, force_download)) |skip| {
-                    if (skip) {
-                        progress(loc.url, "", .Skipped);
-                        continue;
-                    }
-                } else |_| {
-                    progress(loc.url, "", .Failed);
-                }
-
-                downloadDictionary(alloc, loc, base_path, progress);
-            }
-        }
-
-        test "downloadDicts" {
-            const alloc = std.testing.allocator;
-
-            var tmp = std.testing.tmpDir(.{});
-            defer tmp.cleanup();
-            const path = try tmp.dir.realpathAlloc(alloc, ".");
-            defer alloc.free(path);
-
-            const locations: []const DictLocation = &.{
-                .{ .url = "https://github.com/uasi/skk-emoji-jisyo/raw/refs/heads/master/SKK-JISYO.emoji.utf8", .files = &.{} },
-                .{ .url = "https://skk-dev.github.io/dict/SKK-JISYO.itaiji.JIS3_4.gz", .files = &.{} },
-                .{ .url = "https://skk-dev.github.io/dict/SKK-JISYO.edict.tar.gz", .files = &.{"SKK-JISYO.edict"} },
-            };
-            try downloadDicts(alloc, locations, path, false);
-
-            for (&[_][]const u8{
-                "SKK-JISYO.emoji.utf8",
-                "SKK-JISYO.itaiji.JIS3_4",
-                "SKK-JISYO.edict",
-            }) |file| {
-                const p = try std.fs.path.join(alloc, &[_][]const u8{ path, file });
-                defer alloc.free(p);
-
-                try require.isTrue(utils.fs.isFileExisting(p));
-            }
-        }
-    };
 };
 
-fn shouldSkip(alloc: std.mem.Allocator, loc: DictLocation, base_path: []const u8, force_download: bool) !bool {
+pub fn downloadDicts(
+    alloc: std.mem.Allocator,
+    locations: []const Location,
+    base_path: []const u8,
+    force_download: bool,
+) !void {
+    const abs_base_path = try utils.fs.toAbsolutePath(alloc, base_path, null);
+    defer alloc.free(abs_base_path);
+
+    std.fs.cwd().makeDir(abs_base_path) catch |err| switch (err) {
+        error.PathAlreadyExists => {},
+        else => {
+            return err;
+        },
+    };
+
+    for (locations) |loc| {
+        var dsm = DownloadSM.init(loc, base_path, force_download);
+        while (dsm.state != .Finsihed) {
+            dsm.do(alloc) catch {
+                utils.log.err("Failed to download {s}", .{loc.url});
+                break;
+            };
+        }
+        dsm.deinit(alloc);
+    }
+}
+
+test "downloadDicts" {
+    const alloc = std.testing.allocator;
+
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+    const path = try tmp.dir.realpathAlloc(alloc, ".");
+    defer alloc.free(path);
+
+    const locations: []const Location = &.{
+        .{ .url = "https://github.com/uasi/skk-emoji-jisyo/raw/refs/heads/master/SKK-JISYO.emoji.utf8", .files = &.{} },
+        .{ .url = "https://skk-dev.github.io/dict/SKK-JISYO.itaiji.JIS3_4.gz", .files = &.{} },
+        .{ .url = "https://skk-dev.github.io/dict/SKK-JISYO.edict.tar.gz", .files = &.{"SKK-JISYO.edict"} },
+    };
+    try downloadDicts(alloc, locations, path, false);
+
+    for (&[_][]const u8{
+        "SKK-JISYO.emoji.utf8",
+        "SKK-JISYO.itaiji.JIS3_4",
+        "SKK-JISYO.edict",
+    }) |file| {
+        const p = try std.fs.path.join(alloc, &[_][]const u8{ path, file });
+        defer alloc.free(p);
+
+        try require.isTrue(utils.fs.isFileExisting(p));
+    }
+}
+
+const DownloadSM = struct {
+    const State = enum {
+        NotStarted,
+        WaitForDowload,
+        WaitForExtract,
+        WaitForUpdate,
+        WaitForNotification,
+        Finsihed,
+    };
+    const FileInfo = struct {
+        const Result = enum {
+            Updated,
+            NotUpdated,
+            Skipped,
+            Failed,
+        };
+        filename: []const u8,
+        path: []const u8,
+        result: Result,
+    };
+
+    loc: Location,
+    basePath: []const u8,
+    forceDownload: bool,
+
+    state: State = .NotStarted,
+    isSkipped: bool = false,
+    tmpFile: utils.fs.TmpFile = undefined,
+    fileInfos: []*FileInfo = &.{},
+
+    fn init(loc: Location, base_path: []const u8, force_download: bool) @This() {
+        return .{
+            .loc = loc,
+            .basePath = base_path,
+            .forceDownload = force_download,
+        };
+    }
+
+    fn deinit(self: *DownloadSM, alloc: std.mem.Allocator) void {
+        if (self.fileInfos.len > 0) {
+            for (self.fileInfos) |f| {
+                alloc.free(f.filename);
+                alloc.free(f.path);
+                alloc.destroy(f);
+            }
+            alloc.free(self.fileInfos);
+        }
+
+        if (!self.isSkipped) {
+            self.tmpFile.deinit(alloc);
+        }
+    }
+
+    fn do(self: *DownloadSM, alloc: std.mem.Allocator) !void {
+        switch (self.state) {
+            .NotStarted => {
+                const skip = try shouldSkip(alloc, self.loc, self.basePath, self.forceDownload);
+                if (skip) {
+                    self.isSkipped = true;
+                    self.state = .WaitForNotification;
+                    return;
+                }
+                defer self.state = .WaitForDowload;
+
+                self.tmpFile = try utils.fs.GetTmpFile(alloc);
+                return;
+            },
+            .WaitForDowload => {
+                try utils.url.download(alloc, self.loc.url, self.tmpFile.path);
+
+                self.state = .WaitForExtract;
+                return;
+            },
+            .WaitForExtract => {
+                defer self.state = .WaitForUpdate;
+
+                var file_infos = std.ArrayList(*FileInfo).init(alloc);
+                defer file_infos.deinit();
+
+                if (!utils.url.isGzip(self.loc.url) and !utils.url.isTar(self.loc.url)) {
+                    const info = try alloc.create(FileInfo);
+                    info.path = try alloc.dupe(u8, self.tmpFile.path);
+                    info.filename = try alloc.dupe(u8, std.fs.path.basename(self.loc.url));
+
+                    try file_infos.append(info);
+                    self.fileInfos = try file_infos.toOwnedSlice();
+
+                    self.state = .WaitForUpdate;
+                    return;
+                }
+
+                if (utils.url.isGzip(self.loc.url)) {
+                    const decompressed_path = try std.fmt.allocPrint(alloc, "{s}-decompressed", .{self.tmpFile.path});
+                    errdefer alloc.free(decompressed_path);
+
+                    try utils.compress.decompress(self.tmpFile.path, decompressed_path);
+
+                    const info = try alloc.create(FileInfo);
+                    info.path = decompressed_path;
+                    info.filename = try alloc.dupe(u8, std.mem.trimRight(u8, std.fs.path.basename(self.loc.url), ".gz"));
+
+                    try file_infos.append(info);
+                    self.fileInfos = try file_infos.toOwnedSlice();
+
+                    self.state = .WaitForUpdate;
+                    return;
+                }
+
+                // tar
+                try utils.compress.extractTar(self.tmpFile.path, self.tmpFile.dirPath);
+
+                for (self.loc.files) |f| {
+                    const decompressed_path = try utils.fs.toAbsolutePath(alloc, f, self.tmpFile.dirPath);
+
+                    const info = try alloc.create(FileInfo);
+                    info.path = decompressed_path;
+                    info.filename = try alloc.dupe(u8, std.fs.path.basename(f));
+
+                    try file_infos.append(info);
+                }
+                self.fileInfos = try file_infos.toOwnedSlice();
+            },
+            .WaitForUpdate => {
+                defer self.state = .WaitForNotification;
+
+                for (self.fileInfos) |f| {
+                    const dst_file = try utils.fs.toAbsolutePath(alloc, f.filename, self.basePath);
+                    defer alloc.free(dst_file);
+
+                    const updated = utils.fs.IsDiff(alloc, f.path, dst_file);
+                    if (updated) {
+                        if (std.fs.renameAbsolute(f.path, dst_file)) {
+                            f.result = .Updated;
+                        } else |_| {
+                            f.result = .Failed;
+                        }
+                    } else {
+                        f.result = .Skipped;
+                    }
+                }
+            },
+            .WaitForNotification => {
+                defer self.state = .Finsihed;
+
+                if (self.isSkipped) {
+                    utils.log.debug("{s} skipped", .{std.fs.path.basename(self.loc.url)});
+                    return;
+                }
+
+                for (self.fileInfos) |f| {
+                    switch (f.result) {
+                        .Failed => utils.log.err("{s} failed", .{f.filename}),
+                        .Updated => utils.log.info("{s} updated", .{f.filename}),
+                        .NotUpdated => utils.log.debug("{s} not updated", .{f.filename}),
+                        .Skipped => utils.log.debug("{s} skipped", .{f.filename}),
+                    }
+                }
+            },
+            .Finsihed => {},
+        }
+    }
+};
+
+fn shouldSkip(alloc: std.mem.Allocator, loc: Location, base_path: []const u8, force_download: bool) !bool {
     if (!utils.url.isHttpUrl(loc.url)) {
         return true;
     }
@@ -216,172 +349,35 @@ fn shouldSkip(alloc: std.mem.Allocator, loc: DictLocation, base_path: []const u8
 test "shouldSkip" {
     const alloc = std.testing.allocator;
     {
-        const loc: DictLocation = .{ .url = "/tmp/filepath", .files = &.{} };
+        const loc: Location = .{ .url = "/tmp/filepath", .files = &.{} };
         try require.isTrue(try shouldSkip(alloc, loc, ".", true));
         try require.isTrue(try shouldSkip(alloc, loc, ".", false));
     }
     {
-        const loc: DictLocation = .{ .url = "https://abc.com/path/testdata/jisyo.utf8", .files = &.{} };
+        const loc: Location = .{ .url = "https://abc.com/path/testdata/jisyo.utf8", .files = &.{} };
         try require.isTrue(try shouldSkip(alloc, loc, "testdata", false));
         try require.isFalse(try shouldSkip(alloc, loc, "testdata", true));
     }
     {
-        const loc: DictLocation = .{ .url = "https://abc.com/path/testdata/jisyo-notexisting.utf8", .files = &.{} };
+        const loc: Location = .{ .url = "https://abc.com/path/testdata/jisyo-notexisting.utf8", .files = &.{} };
         try require.isFalse(try shouldSkip(alloc, loc, "testdata", false));
     }
     {
-        const loc: DictLocation = .{ .url = "https://abc.com/path/testdata/jisyo.utf8.gz", .files = &.{} };
+        const loc: Location = .{ .url = "https://abc.com/path/testdata/jisyo.utf8.gz", .files = &.{} };
         try require.isTrue(try shouldSkip(alloc, loc, "testdata", false));
         try require.isFalse(try shouldSkip(alloc, loc, "testdata", true));
     }
     {
-        const loc: DictLocation = .{ .url = "https://abc.com/path/testdata/jisyo-notexisting.utf8.gz", .files = &.{} };
+        const loc: Location = .{ .url = "https://abc.com/path/testdata/jisyo-notexisting.utf8.gz", .files = &.{} };
         try require.isFalse(try shouldSkip(alloc, loc, "testdata", false));
     }
     {
-        const loc: DictLocation = .{ .url = "https://abc.com/path/testdata/somefile.tar.gz", .files = &.{"jisyo.utf8"} };
+        const loc: Location = .{ .url = "https://abc.com/path/testdata/somefile.tar.gz", .files = &.{"jisyo.utf8"} };
         try require.isTrue(try shouldSkip(alloc, loc, "testdata", false));
         try require.isFalse(try shouldSkip(alloc, loc, "testdata", true));
     }
     {
-        const loc: DictLocation = .{ .url = "https://abc.com/path/testdata/somefile.tar.gz", .files = &.{"jisyo.utf8,notexisting.utf8"} };
+        const loc: Location = .{ .url = "https://abc.com/path/testdata/somefile.tar.gz", .files = &.{"jisyo.utf8,notexisting.utf8"} };
         try require.isFalse(try shouldSkip(alloc, loc, "testdata", false));
     }
-}
-
-fn downloadDictionary(alloc: std.mem.Allocator, loc: DictLocation, base_path: []const u8, progress: DictLocation.Download.ProgressFn) void {
-    if (!utils.url.isHttpUrl(loc.url)) {
-        unreachable;
-    }
-
-    const url = loc.url;
-
-    var tmpFile = utils.fs.GetTmpFile(alloc) catch {
-        progress(url, "", .Failed);
-        return;
-    };
-    defer tmpFile.deinit(alloc);
-
-    utils.url.download(alloc, url, tmpFile.path) catch {
-        progress(url, "", .Failed);
-        return;
-    };
-
-    if (utils.url.isGzip(loc.url)) {
-        const decompressed_path = std.fmt.allocPrint(alloc, "{s}-decompressed", .{tmpFile.path}) catch {
-            progress(url, "", .Failed);
-            return;
-        };
-        defer alloc.free(decompressed_path);
-
-        utils.compress.decompress(tmpFile.path, decompressed_path) catch {
-            progress(url, "", .Failed);
-        };
-
-        const existing_path = utils.fs.toAbsolutePath(
-            alloc,
-            std.mem.trimRight(u8, std.fs.path.basename(url), ".gz"),
-            base_path,
-        ) catch {
-            progress(url, "", .Failed);
-            return;
-        };
-        defer {
-            alloc.free(existing_path);
-        }
-
-        checkAndUpdateFile(alloc, url, decompressed_path, existing_path, "", progress);
-        return;
-    }
-
-    if (utils.url.isTar(loc.url)) {
-        utils.compress.extractTar(tmpFile.path, tmpFile.dirPath) catch {
-            progress(url, "", .Failed);
-        };
-
-        for (loc.files) |f| {
-            const subFile = std.fmt.allocPrint(alloc, "/{s}", .{std.fs.path.basename(f)}) catch {
-                progress(url, "", .Failed);
-                return;
-            };
-            defer alloc.free(subFile);
-
-            const existing_path = utils.fs.toAbsolutePath(alloc, std.fs.path.basename(f), base_path) catch {
-                progress(url, subFile, .Failed);
-                return;
-            };
-            defer alloc.free(existing_path);
-
-            const decompressed_path = utils.fs.toAbsolutePath(alloc, f, tmpFile.dirPath) catch {
-                progress(url, subFile, .Failed);
-                return;
-            };
-            defer alloc.free(decompressed_path);
-
-            checkAndUpdateFile(alloc, url, decompressed_path, existing_path, subFile, progress);
-        }
-        return;
-    }
-
-    // raw http
-    const existing_path = utils.fs.toAbsolutePath(alloc, std.fs.path.basename(url), base_path) catch {
-        progress(url, "", .Failed);
-        return;
-    };
-    defer alloc.free(existing_path);
-
-    checkAndUpdateFile(alloc, url, tmpFile.path, existing_path, "", progress);
-}
-
-fn checkAndUpdateFile(alloc: std.mem.Allocator, url: []const u8, src_file: []const u8, dst_file: []const u8, subFile: []const u8, progress: DictLocation.Download.ProgressFn) void {
-    const updated = utils.fs.IsDiff(alloc, src_file, dst_file);
-    if (updated) {
-        if (std.fs.renameAbsolute(src_file, dst_file)) {
-            progress(url, subFile, .Downloaded);
-        } else |_| {
-            progress(url, subFile, .NotUpdated);
-        }
-    } else {
-        progress(url, subFile, .NotUpdated);
-    }
-}
-
-test "checkAndUpdateFile" {
-    const alloc = std.testing.allocator;
-
-    const downloadProgress = struct {
-        fn log(_: []const u8, _: []const u8, result: DictLocation.Download.Result) void {
-            require.equal(DictLocation.Download.Result.Downloaded, result) catch unreachable;
-        }
-    }.log;
-
-    const notUpdatedProgress = struct {
-        fn log(_: []const u8, _: []const u8, result: DictLocation.Download.Result) void {
-            require.equal(DictLocation.Download.Result.NotUpdated, result) catch unreachable;
-        }
-    }.log;
-
-    var tmp = std.testing.tmpDir(.{});
-    defer tmp.cleanup();
-    const path = try tmp.dir.realpathAlloc(alloc, ".");
-    defer alloc.free(path);
-
-    const org = try std.fs.cwd().realpathAlloc(alloc, "testdata/jisyo.utf8");
-    defer alloc.free(org);
-
-    const src = try std.fs.path.join(alloc, &[_][]const u8{ path, "src.utf8" });
-    defer alloc.free(src);
-
-    try std.fs.copyFileAbsolute(org, src, .{});
-
-    const dst = try std.fs.path.join(alloc, &[_][]const u8{ path, "dst.utf8" });
-    defer alloc.free(dst);
-
-    checkAndUpdateFile(alloc, "url", src, dst, "", downloadProgress);
-
-    try require.isFalse(utils.fs.isFileExisting(src));
-    try require.isFalse(utils.fs.IsDiff(alloc, org, dst));
-
-    try std.fs.copyFileAbsolute(org, src, .{});
-    checkAndUpdateFile(alloc, "url", src, dst, "", notUpdatedProgress);
 }

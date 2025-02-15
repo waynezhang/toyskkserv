@@ -22,7 +22,7 @@ pub fn updateDicts() !void {
     }
 
     log.info("Start updating at {s}", .{cfg.dictionary_directory});
-    dict_location.DictLocation.Download.downloadDicts(
+    dict_location.downloadDicts(
         alloc,
         cfg.dictionaries,
         cfg.dictionary_directory,
