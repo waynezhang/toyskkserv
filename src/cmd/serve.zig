@@ -3,7 +3,7 @@ const Server = @import("../server/server.zig").Server;
 const config = @import("../config.zig");
 const jdz_allocator = @import("jdz_allocator");
 const utils = @import("../utils/utils.zig");
-const dict_location = @import("../dict/dict_location.zig");
+const dict = @import("../dict/dict.zig");
 
 pub fn serve() !void {
     var jdz = jdz_allocator.JdzAllocator(.{}).init();
@@ -42,7 +42,7 @@ pub fn serve() !void {
         const download_alloc = gpa.allocator();
 
         utils.log.info("Start downloading missing dictionaries", .{});
-        dict_location.downloadDicts(
+        dict.Location.downloadDicts(
             download_alloc,
             cfg.dictionaries,
             cfg.dictionary_directory,
