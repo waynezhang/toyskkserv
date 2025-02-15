@@ -124,9 +124,9 @@ test "config" {
     try require.equal("127.0.0.1:1178", cfg.listen_addr);
     try require.isTrue(cfg.fallback_to_google);
 
-    try require.equal("https://someurl", cfg.dictionaries[0].url);
-    try require.equal("https://someurl.gz", cfg.dictionaries[1].url);
-    try require.equal("https://abc.tar.gz", cfg.dictionaries[2].url);
-    try require.equal("dir/file_a", cfg.dictionaries[2].files[0]);
-    try require.equal("dir/file_b", cfg.dictionaries[2].files[1]);
+    try require.equal("https://skk-dev.github.io/dict/SKK-JISYO.L.gz", cfg.dictionaries[0].url);
+    // ...
+    try require.equal("https://skk-dev.github.io/dict/zipcode.tar.gz", cfg.dictionaries[18].url);
+    try require.equal("zipcode/SKK-JISYO.zipcode", cfg.dictionaries[18].files[0]);
+    try require.equal("zipcode/SKK-JISYO.office.zipcode", cfg.dictionaries[18].files[1]);
 }
