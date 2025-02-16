@@ -26,6 +26,7 @@ pub fn serve() !void {
     };
     defer {
         cfg.deinit(allocator);
+        allocator.destroy(cfg);
     }
     const fmt =
         \\Config loaded:

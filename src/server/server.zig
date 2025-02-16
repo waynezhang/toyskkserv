@@ -84,6 +84,7 @@ pub fn serve(self: *Self, dicts: []dict.Location) !void {
     try server_socket.listen();
 
     var ss = try network.SocketSet.init(self.allocator);
+    defer ss.deinit();
 
     const socket_event: network.SocketEvent = .{
         .read = true,
