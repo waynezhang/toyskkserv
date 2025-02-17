@@ -1,10 +1,9 @@
 const std = @import("std");
 const config = @import("../config.zig");
 const utils = @import("../utils/utils.zig");
-const dict_location = @import("../dict/dict_location.zig");
-const log = std.log;
+const dict = @import("../dict/dict.zig");
 
-pub fn updateDicts() !void {
+pub fn update() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer {
         const check = gpa.deinit();
@@ -13,7 +12,7 @@ pub fn updateDicts() !void {
     const alloc = gpa.allocator();
 
     const cfg = config.loadConfig(alloc) catch |err| {
-        log.err("Failed to load config file due to {}", .{err});
+        utils.log.err("Failed to load config file due to {}", .{err});
         return;
     };
     defer {
@@ -21,8 +20,8 @@ pub fn updateDicts() !void {
         alloc.destroy(cfg);
     }
 
-    log.info("Start updating at {s}", .{cfg.dictionary_directory});
-    dict_location.downloadDicts(
+    utils.log.info("Start updating at {s}", .{cfg.dictionary_directory});
+    dict.Location.downloadDicts(
         alloc,
         cfg.dictionaries,
         cfg.dictionary_directory,

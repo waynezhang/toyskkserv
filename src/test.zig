@@ -1,7 +1,7 @@
 comptime {
     _ = @import("config.zig");
-    _ = @import("dict/dict.zig");
-    _ = @import("dict/dict_location.zig");
+    _ = @import("dict/location.zig");
+    _ = @import("dict/manager.zig");
     _ = @import("server/google_api.zig");
     _ = @import("server/handlers.zig");
     _ = @import("server/response.zig");

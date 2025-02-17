@@ -2,9 +2,7 @@ const std = @import("std");
 const cli = @import("zig-cli");
 const builtin = @import("builtin");
 const version = @import("version.zig");
-const update_cmd = @import("cmd/update_cmd.zig");
-const server_cmd = @import("cmd/server_cmd.zig");
-const reload = @import("cmd/reload.zig");
+const cmd = @import("cmd/cmd.zig");
 
 pub const std_options = .{
     .log_level = .err,
@@ -63,7 +61,7 @@ pub fn main() !void {
                             .one_line = "Tell skkserv to reload dictionaries",
                         },
                         .target = cli.CommandTarget{
-                            .action = cli.CommandAction{ .exec = reload.reload },
+                            .action = cli.CommandAction{ .exec = cmd.reload },
                         },
                     },
                 },
@@ -81,12 +79,12 @@ fn serve() !void {
     if (verbose) {
         @import("utils/utils.zig").log.setLevel(.debug);
     }
-    try server_cmd.serve();
+    try cmd.serve();
 }
 
 fn update() !void {
     if (verbose) {
         @import("utils/utils.zig").log.setLevel(.debug);
     }
-    try update_cmd.updateDicts();
+    try cmd.update();
 }

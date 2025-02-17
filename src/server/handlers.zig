@@ -1,8 +1,7 @@
 const std = @import("std");
 const resp = @import("response.zig");
 const utils = @import("../utils/utils.zig");
-const DictManager = @import("../dict/dict.zig").DictManager;
-const Location = @import("../dict/dict_location.zig").Location;
+const dict = @import("../dict/dict.zig");
 const google_api = @import("google_api.zig");
 const config = @import("../config.zig");
 
@@ -60,10 +59,10 @@ test "DisconnectHandler" {
 }
 
 pub const CandidateHandler = struct {
-    dict_mgr: *DictManager,
+    dict_mgr: *dict.Manager,
     use_google: bool,
 
-    pub fn init(dict_mgr: *DictManager, use_google: bool) @This() {
+    pub fn init(dict_mgr: *dict.Manager, use_google: bool) @This() {
         return .{
             .dict_mgr = dict_mgr,
             .use_google = use_google,
@@ -94,13 +93,13 @@ pub const CandidateHandler = struct {
 test "CandidateHandler" {
     const alloc = std.testing.allocator;
 
-    var mgr = try DictManager.init(alloc);
+    var mgr = try dict.Manager.init(alloc);
     defer mgr.deinit();
 
-    const locations: []const Location = &.{
+    const locations: []const dict.Location = &.{
         .{ .url = "testdata/jisyo.utf8", .files = &.{} },
     };
-    try mgr.loadLocations(locations, ".");
+    try mgr.reloadLocations(locations, ".");
 
     var arr = std.ArrayList(u8).init(alloc);
     defer arr.deinit();
@@ -125,9 +124,9 @@ test "CandidateHandler" {
 }
 
 pub const CompletionHandler = struct {
-    dict_mgr: *DictManager,
+    dict_mgr: *dict.Manager,
 
-    pub fn init(dict_mgr: *DictManager) @This() {
+    pub fn init(dict_mgr: *dict.Manager) @This() {
         return .{
             .dict_mgr = dict_mgr,
         };
@@ -144,13 +143,13 @@ pub const CompletionHandler = struct {
 test "CompletionHandler" {
     const alloc = std.testing.allocator;
 
-    var mgr = try DictManager.init(alloc);
+    var mgr = try dict.Manager.init(alloc);
     defer mgr.deinit();
 
-    const locations: []const Location = &.{
+    const locations: []const dict.Location = &.{
         .{ .url = "testdata/jisyo.utf8", .files = &.{} },
     };
-    try mgr.loadLocations(locations, ".");
+    try mgr.reloadLocations(locations, ".");
 
     var arr = std.ArrayList(u8).init(alloc);
     defer arr.deinit();
@@ -196,9 +195,9 @@ test "RawStringHandler" {
 }
 
 pub const CustomProtocolHandler = struct {
-    dict_mgr: *DictManager,
+    dict_mgr: *dict.Manager,
 
-    pub fn init(dict_mgr: *DictManager) CustomProtocolHandler {
+    pub fn init(dict_mgr: *dict.Manager) CustomProtocolHandler {
         return .{
             .dict_mgr = dict_mgr,
         };
@@ -224,10 +223,6 @@ pub const CustomProtocolHandler = struct {
             alloc.destroy(cfg);
         }
 
-        try reloadDicts(self.dict_mgr, cfg.dictionaries, cfg.dictionary_directory);
+        try self.dict_mgr.reloadLocations(cfg.dictionaries, cfg.dictionary_directory);
     }
 };
-
-fn reloadDicts(dict_mgr: *DictManager, dicts: []Location, dictionary_path: []const u8) !void {
-    try dict_mgr.reloadLocations(dicts, dictionary_path);
-}
