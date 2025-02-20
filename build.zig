@@ -95,9 +95,6 @@ fn prepareTestExe(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std
         .optimize = optimize,
     });
 
-    const protest_mod = b.dependency("protest", .{ .target = target, .optimize = optimize }).module("protest");
-    exe.root_module.addImport("protest", protest_mod);
-
     for (deps) |d| {
         const module = d.module orelse d.name;
         const dep = b.dependency(d.name, .{ .target = target, .optimize = optimize });
