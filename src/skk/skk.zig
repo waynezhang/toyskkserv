@@ -9,64 +9,10 @@ pub const Encoding = enum {
     undecided,
 };
 
-pub const Entry = struct {
+pub const Pair = struct {
     key: []const u8,
     candidate: []const u8,
-
-    pub fn compare(a: *Entry, b: *Entry, _: ?*void) c_int {
-        const order = std.mem.order(u8, a.key, b.key);
-        switch (order) {
-            .lt => {
-                return -1;
-            },
-            .eq => {
-                return 0;
-            },
-            .gt => {
-                return 1;
-            },
-        }
-    }
 };
-
-test "entry compare" {
-    {
-        var a = Entry{
-            .key = "a",
-            .candidate = "",
-        };
-        var b = Entry{
-            .key = "b",
-            .candidate = "",
-        };
-        const ret = a.compare(&b, null);
-        try require.isTrue(ret < 0);
-    }
-    {
-        var a = Entry{
-            .key = "b",
-            .candidate = "",
-        };
-        var b = Entry{
-            .key = "a",
-            .candidate = "",
-        };
-        const ret = a.compare(&b, null);
-        try require.isTrue(ret > 0);
-    }
-    {
-        var a = Entry{
-            .key = "a",
-            .candidate = "",
-        };
-        var b = Entry{
-            .key = "a",
-            .candidate = "",
-        };
-        const ret = a.compare(&b, null);
-        try require.isTrue(ret == 0);
-    }
-}
 
 pub const Iterator = IteratorLine(4096);
 
@@ -78,7 +24,7 @@ fn IteratorLine(comptime size: usize) type {
         buffered: std.io.BufferedReader(size, std.fs.File.Reader),
         line_buf: []u8,
 
-        pub fn next(self: *Iterator, convert_buf: []u8) !?Entry {
+        pub fn next(self: *Iterator, convert_buf: []u8) !?Pair {
             while (true) {
                 const line = self.buffered.reader().readUntilDelimiter(self.line_buf, '\n') catch |err| switch (err) {
                     error.EndOfStream => {
@@ -94,13 +40,13 @@ fn IteratorLine(comptime size: usize) type {
 
                 switch (self.encoding) {
                     .utf8 => {
-                        if (parseEntry(line)) |ent| {
+                        if (parsePair(line)) |ent| {
                             return ent;
                         }
                     },
                     .euc_jp => {
                         if (euc_jp.convertEucJpToUtf8(line, convert_buf)) |utf8_line| {
-                            if (parseEntry(utf8_line)) |ent| {
+                            if (parsePair(utf8_line)) |ent| {
                                 return ent;
                             }
                         } else |_| {}
@@ -259,7 +205,7 @@ test "detectEncoding" {
     try require.equal(Encoding.utf8, detectEncoding(";;; coding: utf-8 coding: euc_jp"));
 }
 
-fn parseEntry(input: []const u8) ?Entry {
+fn parsePair(input: []const u8) ?Pair {
     if (std.mem.startsWith(u8, input, ";;")) {
         return null;
     }
@@ -280,31 +226,31 @@ fn parseEntry(input: []const u8) ?Entry {
     };
 }
 
-test "parseEntry" {
+test "parsePair" {
     {
-        const result = parseEntry("hello world").?;
+        const result = parsePair("hello world").?;
         try require.equal("hello", result.key);
         try require.equal("world", result.candidate);
     }
     {
-        const result = parseEntry("hello   world  test").?;
+        const result = parsePair("hello   world  test").?;
         try require.equal("hello", result.key);
         try require.equal("world  test", result.candidate);
     }
     {
-        const result = parseEntry("");
+        const result = parsePair("");
         try require.isNull(result);
     }
     {
-        const result = parseEntry("helloworld");
+        const result = parsePair("helloworld");
         try require.isNull(result);
     }
     {
-        const result = parseEntry(" ");
+        const result = parsePair(" ");
         try require.isNull(result);
     }
     {
-        const result = parseEntry(";; some line here");
+        const result = parsePair(";; some line here");
         try require.isNull(result);
     }
 }
