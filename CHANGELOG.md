@@ -1,3 +1,22 @@
+## 0.0.8 (2025-02-22)
+
+### New feature
+
+- optimize memory usage ([9b13ba5](https://github.com/waynezhang/toyskkserv/commit/9b13ba5ddeb47032a2b2a22756a2734aa59922cf))
+- reduce memory usage ([24b0944](https://github.com/waynezhang/toyskkserv/commit/24b0944f8c005ca3ff216a190353961749d068b9))
+
+### Fix
+
+- deinitialize properly ([0739339](https://github.com/waynezhang/toyskkserv/commit/0739339a2305ca91d277346b7f019fbadd20967f))
+- unittest ([d32e4ff](https://github.com/waynezhang/toyskkserv/commit/d32e4ff2b6d41d3a4ce686893d0991ed99a081cb))
+
+### Refactor
+
+- download logic ([a6473f8](https://github.com/waynezhang/toyskkserv/commit/a6473f8372eeab6e1543875a598cbb7130c7437d))
+- flatten structs ([8c79e1a](https://github.com/waynezhang/toyskkserv/commit/8c79e1a9639e526da20698240c0f5f7ce71bb7f0))
+- rename DictLocation to Location ([cd173ac](https://github.com/waynezhang/toyskkserv/commit/cd173acda41486d6375985d6d43d7f44710adf29))
+
+
 ## v0.0.7 (2025-02-15)
 
 ### New feature
