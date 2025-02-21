@@ -3,19 +3,20 @@ const btree = @import("btree-zig");
 const Location = @import("location.zig");
 const skk = @import("../skk/skk.zig");
 const utils = @import("../utils/utils.zig");
+const Entry = @import("entry.zig");
 const require = @import("protest").require;
 
 const Self = @This();
 
 allocator: std.mem.Allocator,
-tree: *btree.Btree(skk.Entry, void) = undefined,
+tree: *btree.Btree(Entry, void) = undefined,
 
 pub fn init(allocator: std.mem.Allocator) !Self {
     var manager: @This() = undefined;
     manager.allocator = allocator;
 
-    manager.tree = try allocator.create(btree.Btree(skk.Entry, void));
-    manager.tree.* = btree.Btree(skk.Entry, void).init(0, skk.Entry.compare, null);
+    manager.tree = try allocator.create(btree.Btree(Entry, void));
+    manager.tree.* = btree.Btree(Entry, void).init(0, Entry.compare, null);
 
     return manager;
 }
@@ -40,16 +41,15 @@ pub fn reloadLocations(self: *Self, locations: []const Location, dictionary_path
     try self.loadFiles(files);
 }
 
-pub fn findCandidate(self: *const Self, key: []const u8) []const u8 {
+pub fn findCandidate(self: *const Self, alloc: std.mem.Allocator, key: []const u8) []const u8 {
     if (key.len == 0) {
         return "";
     }
-    const found: skk.Entry = .{
-        .key = key,
-        .candidate = "",
-    };
+    const found = Entry.initFrom(alloc, key, "") catch return "";
+    defer found.deinit(alloc);
+
     if (self.tree.get(&found)) |ent| {
-        return ent.candidate;
+        return ent.candidate();
     }
     return "";
 }
@@ -63,12 +63,12 @@ pub fn findCompletion(self: *const Self, alloc: std.mem.Allocator, key: []const 
         arr: *std.ArrayList(u8),
     };
     const cb = struct {
-        fn iter(a: *skk.Entry, context: ?*Ctx) bool {
-            if (std.mem.startsWith(u8, a.key, context.?.pivo_key)) {
+        fn iter(a: *Entry, context: ?*Ctx) bool {
+            if (std.mem.startsWith(u8, a.key(), context.?.pivo_key)) {
                 context.?.arr.append('/') catch {
                     return false;
                 };
-                context.?.arr.appendSlice(a.key) catch {
+                context.?.arr.appendSlice(a.key()) catch {
                     return false;
                 };
                 return true;
@@ -85,10 +85,9 @@ pub fn findCompletion(self: *const Self, alloc: std.mem.Allocator, key: []const 
         .arr = &arr,
     };
 
-    const pivot = skk.Entry{
-        .key = key,
-        .candidate = "",
-    };
+    const pivot = try Entry.initFrom(alloc, key, "");
+    defer pivot.deinit(alloc);
+
     _ = self.tree.ascend(Ctx, &ctx, &pivot, cb.iter);
     if (arr.items.len > 0) {
         arr.append('/') catch {};
@@ -119,9 +118,9 @@ test "DictManager" {
     };
     try mgr.reloadLocations(locations, path);
 
-    try require.equal("", mgr.findCandidate(""));
-    try require.equal("/キロ/", mgr.findCandidate("1024"));
-    try require.equal("", mgr.findCandidate("1000000"));
+    try require.equal("", mgr.findCandidate(alloc, ""));
+    try require.equal("/キロ/", mgr.findCandidate(alloc, "1024"));
+    try require.equal("", mgr.findCandidate(alloc, "1000000"));
 
     {
         const comp = try mgr.findCompletion(alloc, "");
@@ -136,10 +135,10 @@ test "DictManager" {
 
     // reload
     try mgr.reloadLocations(&[_]Location{}, path);
-    try require.equal("", mgr.findCandidate("1024"));
+    try require.equal("", mgr.findCandidate(alloc, "1024"));
 
     try mgr.reloadLocations(locations, path);
-    try require.equal("/キロ/", mgr.findCandidate("1024"));
+    try require.equal("/キロ/", mgr.findCandidate(alloc, "1024"));
 }
 
 fn loadFiles(self: *const Self, filenames: []const []const u8) !void {
@@ -158,7 +157,7 @@ fn loadFiles(self: *const Self, filenames: []const []const u8) !void {
     utils.log.info("Loaded {d}/{d} dictionaries", .{ loaded, filenames.len });
 }
 
-fn loadFile(allocator: std.mem.Allocator, tree: *btree.Btree(skk.Entry, void), filename: []const u8) !void {
+fn loadFile(allocator: std.mem.Allocator, tree: *btree.Btree(Entry, void), filename: []const u8) !void {
     utils.log.debug("Processing file {s}", .{std.fs.path.basename(filename)});
 
     var line_buf = [_]u8{0} ** 4096;
@@ -174,105 +173,71 @@ fn loadFile(allocator: std.mem.Allocator, tree: *btree.Btree(skk.Entry, void), f
     }
 }
 
-fn processLine(allocator: std.mem.Allocator, tree: *btree.Btree(skk.Entry, void), key: []const u8, candidate: []const u8) !void {
-    const found: skk.Entry = .{
-        .key = key,
-        .candidate = "",
-    };
+fn processLine(allocator: std.mem.Allocator, tree: *btree.Btree(Entry, void), key: []const u8, candidate: []const u8) !void {
+    const found: Entry = try Entry.initFrom(allocator, key, "");
+    defer found.deinit(allocator);
 
-    if (tree.get(&found)) |ent| {
-        if (false) {} else {
-            if (concatCandidats(allocator, ent.candidate, candidate)) |concated| {
-                allocator.free(ent.candidate);
-                ent.candidate = concated;
-            } else |err| {
-                utils.log.err("Failed to concatCandidate {}", .{err});
-            }
-        }
+    if (tree.delete(&found)) |ent| {
+        defer ent.deinit(allocator);
+
+        const new_cdd = try std.mem.concat(allocator, u8, &[_][]const u8{
+            ent.candidate(),
+            candidate[1..],
+        });
+        defer allocator.free(new_cdd);
+
+        var new_ent = try Entry.initFrom(allocator, key, new_cdd);
+        _ = tree.set(&new_ent);
     } else {
-        const ent: skk.Entry = .{
-            .key = try allocator.dupe(u8, key),
-            .candidate = try allocator.dupe(u8, candidate),
-        };
-
+        const ent = try Entry.initFrom(allocator, key, candidate);
         _ = tree.set(&ent);
     }
 }
 
 test "processLine" {
     const alloc = std.testing.allocator;
-    var tree = btree.Btree(skk.Entry, void).init(0, skk.Entry.compare, null);
+    var tree = btree.Btree(Entry, void).init(0, Entry.compare, null);
     defer {
         clearBtree(alloc, &tree);
         tree.deinit();
     }
 
-    var found: skk.Entry = .{
-        .key = "",
-        .candidate = "",
-    };
     {
         try processLine(alloc, &tree, "test", "/abc/");
 
-        found.key = "test";
+        var found = try Entry.initFrom(alloc, "test", "");
+        defer found.deinit(alloc);
+
         const ret = tree.get(&found);
-        try require.equal("/abc/", ret.?.candidate);
+        try require.equal("/abc/", ret.?.candidate());
     }
     {
         try processLine(alloc, &tree, "test2", "/123/");
 
-        found.key = "test2";
+        var found = try Entry.initFrom(alloc, "test2", "");
+        defer found.deinit(alloc);
+
         const ret = tree.get(&found);
-        try require.equal("/123/", ret.?.candidate);
+        try require.equal("/123/", ret.?.candidate());
     }
     {
         try processLine(alloc, &tree, "test", "/def/");
 
-        found.key = "test";
+        var found = try Entry.initFrom(alloc, "test", "");
+        defer found.deinit(alloc);
+
         const ret = tree.get(&found);
-        try require.equal("/abc/def/", ret.?.candidate);
+        try require.equal("/abc/def/", ret.?.candidate());
     }
 }
 
-fn clearBtree(alloc: std.mem.Allocator, tree: *btree.Btree(skk.Entry, void)) void {
+fn clearBtree(alloc: std.mem.Allocator, tree: *btree.Btree(Entry, void)) void {
     while (true) {
         if (tree.popMin()) |ent| {
-            alloc.free(ent.key);
-            alloc.free(ent.candidate);
+            ent.deinit(alloc);
         } else {
             break;
         }
     }
     tree.clear();
-}
-
-fn concatCandidats(allocator: std.mem.Allocator, first: []const u8, second: []const u8) ![]u8 {
-    const trimmed_second = if (std.mem.startsWith(u8, second, "/"))
-        second[1..]
-    else
-        second;
-
-    return std.mem.concat(allocator, u8, &[_][]const u8{ first, trimmed_second });
-}
-
-test "concatCandidats" {
-    const alloc = std.testing.allocator;
-    {
-        const cdd = try concatCandidats(alloc, "/abc/", "/def/");
-        defer alloc.free(cdd);
-
-        try require.equal("/abc/def/", cdd);
-    }
-    {
-        const cdd = try concatCandidats(alloc, "/abc/", "def/");
-        defer alloc.free(cdd);
-
-        try require.equal("/abc/def/", cdd);
-    }
-    {
-        const cdd = try concatCandidats(alloc, "/abc/", "");
-        defer alloc.free(cdd);
-
-        try require.equal("/abc/", cdd);
-    }
 }

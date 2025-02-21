@@ -70,7 +70,7 @@ pub const CandidateHandler = struct {
     }
 
     fn handle(self: CandidateHandler, alloc: std.mem.Allocator, buffer: *std.ArrayList(u8), line: []const u8) !void {
-        const cdd = self.dict_mgr.findCandidate(line);
+        const cdd = self.dict_mgr.findCandidate(alloc, line);
         if (cdd.len > 0) {
             return try resp.generateResponse(buffer, line, cdd);
         }
