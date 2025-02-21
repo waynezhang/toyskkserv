@@ -3,76 +3,10 @@ const btree = @import("btree-zig");
 const Location = @import("location.zig");
 const skk = @import("../skk/skk.zig");
 const utils = @import("../utils/utils.zig");
+const Entry = @import("entry.zig");
 const require = @import("protest").require;
 
 const Self = @This();
-
-const Entry = struct {
-    key_len: usize,
-    data: []u8,
-
-    fn key(self: Entry) []const u8 {
-        return self.data[0..self.key_len];
-    }
-
-    fn candidate(self: Entry) []const u8 {
-        return self.data[self.key_len..];
-    }
-
-    pub fn compare(a: *Entry, b: *Entry, _: ?*void) c_int {
-        const order = std.mem.order(u8, a.key(), b.key());
-        switch (order) {
-            .lt => {
-                return -1;
-            },
-            .eq => {
-                return 0;
-            },
-            .gt => {
-                return 1;
-            },
-        }
-    }
-};
-
-test "entry compare" {
-    {
-        var a = Entry{
-            .key_len = 1,
-            .data = @constCast("a"),
-        };
-        var b = Entry{
-            .key_len = 1,
-            .data = @constCast("b"),
-        };
-        const ret = a.compare(&b, null);
-        try require.isTrue(ret < 0);
-    }
-    {
-        var a = Entry{
-            .key_len = 1,
-            .data = @constCast("b"),
-        };
-        var b = Entry{
-            .key_len = 1,
-            .data = @constCast("a"),
-        };
-        const ret = a.compare(&b, null);
-        try require.isTrue(ret > 0);
-    }
-    {
-        var a = Entry{
-            .key_len = 1,
-            .data = @constCast("a1234"),
-        };
-        var b = Entry{
-            .key_len = 1,
-            .data = @constCast("a4321"),
-        };
-        const ret = a.compare(&b, null);
-        try require.isTrue(ret == 0);
-    }
-}
 
 allocator: std.mem.Allocator,
 tree: *btree.Btree(Entry, void) = undefined,
@@ -107,14 +41,13 @@ pub fn reloadLocations(self: *Self, locations: []const Location, dictionary_path
     try self.loadFiles(files);
 }
 
-pub fn findCandidate(self: *const Self, key: []const u8) []const u8 {
+pub fn findCandidate(self: *const Self, alloc: std.mem.Allocator, key: []const u8) []const u8 {
     if (key.len == 0) {
         return "";
     }
-    const found: Entry = .{
-        .key_len = key.len,
-        .data = @constCast(key),
-    };
+    const found = Entry.initFrom(alloc, key, "") catch return "";
+    defer found.deinit(alloc);
+
     if (self.tree.get(&found)) |ent| {
         return ent.candidate();
     }
@@ -152,10 +85,9 @@ pub fn findCompletion(self: *const Self, alloc: std.mem.Allocator, key: []const 
         .arr = &arr,
     };
 
-    const pivot = Entry{
-        .key_len = key.len,
-        .data = @constCast(key),
-    };
+    const pivot = try Entry.initFrom(alloc, key, "");
+    defer pivot.deinit(alloc);
+
     _ = self.tree.ascend(Ctx, &ctx, &pivot, cb.iter);
     if (arr.items.len > 0) {
         arr.append('/') catch {};
@@ -186,9 +118,9 @@ test "DictManager" {
     };
     try mgr.reloadLocations(locations, path);
 
-    try require.equal("", mgr.findCandidate(""));
-    try require.equal("/キロ/", mgr.findCandidate("1024"));
-    try require.equal("", mgr.findCandidate("1000000"));
+    try require.equal("", mgr.findCandidate(alloc, ""));
+    try require.equal("/キロ/", mgr.findCandidate(alloc, "1024"));
+    try require.equal("", mgr.findCandidate(alloc, "1000000"));
 
     {
         const comp = try mgr.findCompletion(alloc, "");
@@ -203,10 +135,10 @@ test "DictManager" {
 
     // reload
     try mgr.reloadLocations(&[_]Location{}, path);
-    try require.equal("", mgr.findCandidate("1024"));
+    try require.equal("", mgr.findCandidate(alloc, "1024"));
 
     try mgr.reloadLocations(locations, path);
-    try require.equal("/キロ/", mgr.findCandidate("1024"));
+    try require.equal("/キロ/", mgr.findCandidate(alloc, "1024"));
 }
 
 fn loadFiles(self: *const Self, filenames: []const []const u8) !void {
@@ -242,25 +174,22 @@ fn loadFile(allocator: std.mem.Allocator, tree: *btree.Btree(Entry, void), filen
 }
 
 fn processLine(allocator: std.mem.Allocator, tree: *btree.Btree(Entry, void), key: []const u8, candidate: []const u8) !void {
-    const found: Entry = .{
-        .key_len = key.len,
-        .data = @constCast(key),
-    };
+    const found: Entry = try Entry.initFrom(allocator, key, "");
+    defer found.deinit(allocator);
 
-    if (tree.get(&found)) |ent| {
-        const data = try allocator.alloc(u8, ent.data.len + candidate.len - 1);
-        std.mem.copyForwards(u8, data, ent.data);
-        std.mem.copyForwards(u8, data[ent.data.len..], candidate[1..]);
-        allocator.free(ent.data);
-        ent.data = data;
+    if (tree.delete(&found)) |ent| {
+        defer ent.deinit(allocator);
+
+        const new_cdd = try std.mem.concat(allocator, u8, &[_][]const u8{
+            ent.candidate(),
+            candidate[1..],
+        });
+        defer allocator.free(new_cdd);
+
+        var new_ent = try Entry.initFrom(allocator, key, new_cdd);
+        _ = tree.set(&new_ent);
     } else {
-        const ent: Entry = .{
-            .key_len = key.len,
-            .data = try allocator.alloc(u8, key.len + candidate.len),
-        };
-        std.mem.copyForwards(u8, ent.data[0..], key);
-        std.mem.copyForwards(u8, ent.data[key.len..], candidate);
-
+        const ent = try Entry.initFrom(allocator, key, candidate);
         _ = tree.set(&ent);
     }
 }
@@ -273,15 +202,11 @@ test "processLine" {
         tree.deinit();
     }
 
-    var found: Entry = .{
-        .key_len = 0,
-        .data = "",
-    };
     {
         try processLine(alloc, &tree, "test", "/abc/");
 
-        found.data = @constCast("test");
-        found.key_len = found.data.len;
+        var found = try Entry.initFrom(alloc, "test", "");
+        defer found.deinit(alloc);
 
         const ret = tree.get(&found);
         try require.equal("/abc/", ret.?.candidate());
@@ -289,8 +214,8 @@ test "processLine" {
     {
         try processLine(alloc, &tree, "test2", "/123/");
 
-        found.data = @constCast("test2");
-        found.key_len = found.data.len;
+        var found = try Entry.initFrom(alloc, "test2", "");
+        defer found.deinit(alloc);
 
         const ret = tree.get(&found);
         try require.equal("/123/", ret.?.candidate());
@@ -298,8 +223,8 @@ test "processLine" {
     {
         try processLine(alloc, &tree, "test", "/def/");
 
-        found.data = @constCast("test");
-        found.key_len = found.data.len;
+        var found = try Entry.initFrom(alloc, "test", "");
+        defer found.deinit(alloc);
 
         const ret = tree.get(&found);
         try require.equal("/abc/def/", ret.?.candidate());
@@ -309,41 +234,10 @@ test "processLine" {
 fn clearBtree(alloc: std.mem.Allocator, tree: *btree.Btree(Entry, void)) void {
     while (true) {
         if (tree.popMin()) |ent| {
-            alloc.free(ent.data);
+            ent.deinit(alloc);
         } else {
             break;
         }
     }
     tree.clear();
-}
-
-fn concatCandidats(allocator: std.mem.Allocator, first: []const u8, second: []const u8) ![]u8 {
-    const trimmed_second = if (std.mem.startsWith(u8, second, "/"))
-        second[1..]
-    else
-        second;
-
-    return std.mem.concat(allocator, u8, &[_][]const u8{ first, trimmed_second });
-}
-
-test "concatCandidats" {
-    const alloc = std.testing.allocator;
-    {
-        const cdd = try concatCandidats(alloc, "/abc/", "/def/");
-        defer alloc.free(cdd);
-
-        try require.equal("/abc/def/", cdd);
-    }
-    {
-        const cdd = try concatCandidats(alloc, "/abc/", "def/");
-        defer alloc.free(cdd);
-
-        try require.equal("/abc/def/", cdd);
-    }
-    {
-        const cdd = try concatCandidats(alloc, "/abc/", "");
-        defer alloc.free(cdd);
-
-        try require.equal("/abc/", cdd);
-    }
 }
