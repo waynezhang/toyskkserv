@@ -38,9 +38,13 @@ pub fn serve() !void {
     utils.log.info(fmt, .{ cfg.dictionary_directory, cfg.listen_addr, cfg.fallback_to_google, cfg.dictionaries.len });
 
     {
-        // jdz is causing crash  on download
+        // jdz is causing crash on download
         var gpa = std.heap.GeneralPurposeAllocator(.{}){};
         const download_alloc = gpa.allocator();
+        defer {
+            const deinit_status = gpa.deinit();
+            if (deinit_status == .leak) unreachable;
+        }
 
         utils.log.info("Start downloading missing dictionaries", .{});
         dict.Location.downloadDicts(
@@ -51,9 +55,6 @@ pub fn serve() !void {
         ) catch |err| {
             utils.log.err("Download failed due to {}", .{err});
         };
-
-        const deinit_status = gpa.deinit();
-        if (deinit_status == .leak) unreachable;
     }
 
     const server = try allocator.create(Server);
