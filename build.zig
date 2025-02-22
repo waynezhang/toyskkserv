@@ -10,7 +10,6 @@ pub fn build(b: *std.Build) void {
         .{ .name = "percent_encoding" },
         .{ .name = "jdz_allocator" },
         .{ .name = "network" },
-        .{ .name = "chroma" },
         .{ .name = "temp" },
         .{
             .name = "euc-jis-2004-zig",
