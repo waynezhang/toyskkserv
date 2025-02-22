@@ -3,28 +3,28 @@
     .version = "0.0.6",
     .dependencies = .{
         .@"zig-cli" = .{
-            .url = "git+https://github.com/sam701/zig-cli?ref=last-zig-0.13#9a94c4803a52e54c26b198096d63fb5bde752da2",
-            .hash = "1220ab73fb7cc11b2308edc3364988e05efcddbcac31b707f55e6216d1b9c0da13f1",
+            .url = "git+https://github.com/sam701/zig-cli#3c51a0496c579d0e6db650da74523f0e0939ba69",
+            .hash = "1220f6f9a6aadef20b6d820226f7076abfd634a71e67aa67ccf770fb8381883853b0",
         },
         .@"btree-zig" = .{
             .url = "git+https://github.com/almmiko/btree.c-zig#fc0d08558b5104991ae43c04d7b7c10a4be49aa7",
             .hash = "1220c31ffe3b2e372cd02427548d21ea799f466772237e136326040406561096f7f3",
         },
         .protest = .{
-            .url = "git+https://github.com/ibokuri/protest#e7a9bc39c213985814a904b38e4506a6fbd537b2",
-            .hash = "122014736a658ee30f82e5c6e3038c95727690fe01fced2791b213dba10c65fba7c5",
+            .url = "git+https://github.com/waynezhang/protest#da9b761a44ec7ec954dcad6fdd05c35bfe1ae19e",
+            .hash = "1220404b0700de6e5c093f0ff22656dd9c74f654dcdfbb402b59900459da06c39316",
         },
         .percent_encoding = .{
             .url = "git+https://github.com/bcrist/zig-percent-encoding#5bb61c66cabf8cd7724f1539ad5c4c421ebd2c4c",
             .hash = "12208ce96000d7263c362543c19236d68cbf1f05c69c7305ed4915db82970719c61d",
         },
         .zon_get_fields = .{
-            .url = "https://github.com/Durobot/zon_get_fields/archive/refs/tags/v0.1-beta.tar.gz",
-            .hash = "1220c231f84b21e03244a1459fd7c344dd699795506c5ba0c56f3f2c50ffc6fccb1b",
+            .url = "git+https://github.com/Durobot/zon_get_fields#47d458f0d9f20b37b6c21eb7a7ee061b8787dfa4",
+            .hash = "1220ccd7cf0b4010204350957157f574e7beaef6bdcb522bb78cd25c7bb0613e9891",
         },
         .jdz_allocator = .{
-            .url = "git+https://github.com/joadnacer/jdz_allocator#fefa1851875adfcb0e2bf6534c9d04e304be093f",
-            .hash = "12205cc579d7cd5d7419014d984c23fc0a410decc43176d87a4545189d7f1f69622d",
+            .url = "git+https://github.com/kython28/jdz_allocator#f87c3eefbcdcca0034a5de15bdbc559185b0de71",
+            .hash = "1220cb38c3002d829cd1d58c4f988553c64f3fac4f918cb0303867eb1cb2b1654765",
         },
         .network = .{
             .url = "git+https://github.com/ikskuh/zig-network#8db1aa2f5efdf1e2ff6dd5f5f8efe1b4f44ff978",
@@ -35,8 +35,8 @@
             .hash = "12202d1fa220984efd18d4b2a095b95591a1fd458ec112c2148ecb61f8594fd9ad11",
         },
         .temp = .{
-            .url = "git+https://github.com/abhinav/temp.zig#6c02e98497b32c78fb67db576dcbc9b1c42c1a04",
-            .hash = "122095027cb551451a12706f958487bacc9bec1dfcd8c6bdacff890fb8d641755a58",
+            .url = "git+https://github.com/waynezhang/temp.zig#1d338cadd69bc1bd1a6a380efc68aaa4b2873ae7",
+            .hash = "122053f8909d6819c8576041b28402d1d0178bd204c6f13eaaa3a08a6104d050278a",
         },
     },
     .paths = .{

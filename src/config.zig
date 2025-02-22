@@ -11,7 +11,6 @@ dictionary_directory: []const u8 = &.{},
 listen_addr: []const u8 = &.{},
 fallback_to_google: bool = false,
 dictionaries: []dict.Location = &.{},
-update_schedule: []const u8 = &.{},
 
 pub fn init(alloc: std.mem.Allocator, ast: std.zig.Ast) !Self {
     var cfg = Self{};
@@ -41,7 +40,6 @@ pub fn init(alloc: std.mem.Allocator, ast: std.zig.Ast) !Self {
 pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
     allocator.free(self.dictionary_directory);
     allocator.free(self.listen_addr);
-    allocator.free(self.update_schedule);
     for (self.dictionaries) |d| {
         allocator.free(d.url);
         for (d.files) |f| {

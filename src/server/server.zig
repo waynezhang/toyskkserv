@@ -2,7 +2,7 @@ const std = @import("std");
 const builtin = @import("builtin");
 const network = @import("network");
 const euc_jp = @import("euc-jis-2004-zig");
-const handlers = @import("handlers.zig");
+const req_handlers = @import("handlers.zig");
 const utils = @import("../utils/utils.zig");
 const version = @import("../version.zig");
 const dict = @import("../dict/dict.zig");
@@ -15,7 +15,7 @@ allocator: std.mem.Allocator,
 dict_mgr: *dict.Manager,
 listen_addr: []const u8,
 dictionary_directory: []const u8,
-handlers: []const handlers.Handler,
+handlers: []const req_handlers.Handler,
 
 const Context = struct {
     listen_addr: []const u8,
@@ -27,31 +27,31 @@ pub fn init(allocator: std.mem.Allocator, context: Context) !Self {
     const dict_mgr = try allocator.create(dict.Manager);
     dict_mgr.* = try dict.Manager.init(allocator);
 
-    var hdls = try allocator.alloc(handlers.Handler, if (builtin.mode == .Debug) 7 else 6);
-    hdls[0] = handlers.Handler{
-        .disconnect_handler = handlers.DisconnectHandler{},
+    var hdls = try allocator.alloc(req_handlers.Handler, if (builtin.mode == .Debug) 7 else 6);
+    hdls[0] = req_handlers.Handler{
+        .disconnect_handler = req_handlers.DisconnectHandler{},
     };
-    hdls[1] = handlers.Handler{
-        .candidate_handler = handlers.CandidateHandler{
+    hdls[1] = req_handlers.Handler{
+        .candidate_handler = req_handlers.CandidateHandler{
             .dict_mgr = dict_mgr,
             .use_google = context.use_google,
         },
     };
-    hdls[2] = handlers.Handler{
-        .raw_string_handler = handlers.RawStringHandler(128).init(version.FullDescription),
+    hdls[2] = req_handlers.Handler{
+        .raw_string_handler = req_handlers.RawStringHandler(128).init(version.FullDescription),
     };
-    hdls[3] = handlers.Handler{
-        .raw_string_handler = handlers.RawStringHandler(128).init(context.listen_addr),
+    hdls[3] = req_handlers.Handler{
+        .raw_string_handler = req_handlers.RawStringHandler(128).init(context.listen_addr),
     };
-    hdls[4] = handlers.Handler{
-        .completion_handler = handlers.CompletionHandler{ .dict_mgr = dict_mgr },
+    hdls[4] = req_handlers.Handler{
+        .completion_handler = req_handlers.CompletionHandler{ .dict_mgr = dict_mgr },
     };
-    hdls[5] = handlers.Handler{
-        .custom_protocol_handler = handlers.CustomProtocolHandler{ .dict_mgr = dict_mgr },
+    hdls[5] = req_handlers.Handler{
+        .custom_protocol_handler = req_handlers.CustomProtocolHandler{ .dict_mgr = dict_mgr },
     };
     if (builtin.mode == .Debug) {
-        hdls[6] = handlers.Handler{
-            .exit_handler = handlers.ExitHandler{},
+        hdls[6] = req_handlers.Handler{
+            .exit_handler = req_handlers.ExitHandler{},
         };
     }
 
