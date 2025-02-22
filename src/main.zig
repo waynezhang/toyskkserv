@@ -4,7 +4,7 @@ const builtin = @import("builtin");
 const version = @import("version.zig");
 const cmd = @import("cmd/cmd.zig");
 
-pub const std_options = .{
+pub const std_options: std.Options = .{
     .log_level = .err,
 };
 
