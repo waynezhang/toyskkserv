@@ -45,7 +45,7 @@ pub fn findCandidate(self: *const Self, alloc: std.mem.Allocator, key: []const u
     if (key.len == 0) {
         return "";
     }
-    const found = Entry.initFrom(alloc, key, "") catch return "";
+    const found = Entry.init(alloc, key, "") catch return "";
     defer found.deinit(alloc);
 
     if (self.tree.get(&found)) |ent| {
@@ -85,7 +85,7 @@ pub fn findCompletion(self: *const Self, alloc: std.mem.Allocator, key: []const 
         .arr = &arr,
     };
 
-    const pivot = try Entry.initFrom(alloc, key, "");
+    const pivot = try Entry.init(alloc, key, "");
     defer pivot.deinit(alloc);
 
     _ = self.tree.ascend(Ctx, &ctx, &pivot, cb.iter);
@@ -163,7 +163,7 @@ fn loadFile(allocator: std.mem.Allocator, tree: *btree.Btree(Entry, void), filen
     var line_buf = [_]u8{0} ** 4096;
     var conv_buf = [_]u8{0} ** 4096;
 
-    var ite = try skk.OpenDictionaryFile(filename, &line_buf);
+    var ite = try skk.open(filename, &line_buf);
     defer ite.deinit();
 
     while (try ite.next(&conv_buf)) |pair| {
@@ -174,7 +174,7 @@ fn loadFile(allocator: std.mem.Allocator, tree: *btree.Btree(Entry, void), filen
 }
 
 fn processLine(allocator: std.mem.Allocator, tree: *btree.Btree(Entry, void), key: []const u8, candidate: []const u8) !void {
-    const found: Entry = try Entry.initFrom(allocator, key, "");
+    const found: Entry = try Entry.init(allocator, key, "");
     defer found.deinit(allocator);
 
     if (tree.delete(&found)) |ent| {
@@ -186,10 +186,10 @@ fn processLine(allocator: std.mem.Allocator, tree: *btree.Btree(Entry, void), ke
         });
         defer allocator.free(new_cdd);
 
-        var new_ent = try Entry.initFrom(allocator, key, new_cdd);
+        var new_ent = try Entry.init(allocator, key, new_cdd);
         _ = tree.set(&new_ent);
     } else {
-        const ent = try Entry.initFrom(allocator, key, candidate);
+        const ent = try Entry.init(allocator, key, candidate);
         _ = tree.set(&ent);
     }
 }
@@ -205,7 +205,7 @@ test "processLine" {
     {
         try processLine(alloc, &tree, "test", "/abc/");
 
-        var found = try Entry.initFrom(alloc, "test", "");
+        var found = try Entry.init(alloc, "test", "");
         defer found.deinit(alloc);
 
         const ret = tree.get(&found);
@@ -214,7 +214,7 @@ test "processLine" {
     {
         try processLine(alloc, &tree, "test2", "/123/");
 
-        var found = try Entry.initFrom(alloc, "test2", "");
+        var found = try Entry.init(alloc, "test2", "");
         defer found.deinit(alloc);
 
         const ret = tree.get(&found);
@@ -223,7 +223,7 @@ test "processLine" {
     {
         try processLine(alloc, &tree, "test", "/def/");
 
-        var found = try Entry.initFrom(alloc, "test", "");
+        var found = try Entry.init(alloc, "test", "");
         defer found.deinit(alloc);
 
         const ret = tree.get(&found);

@@ -62,7 +62,7 @@ fn IteratorLine(comptime size: usize) type {
     };
 }
 
-pub fn OpenDictionaryFile(filepath: []const u8, line_buffer: []u8) !Iterator {
+pub fn open(filepath: []const u8, line_buffer: []u8) !Iterator {
     const encoding: Encoding = if (std.mem.endsWith(u8, filepath, ".utf8")) .utf8 else .undecided;
 
     const file = try std.fs.cwd().openFile(filepath, .{});
@@ -92,7 +92,7 @@ test "skk utf-8 with header" {
     var buf = [_]u8{0} ** 4096;
     var conv_buf = [_]u8{0} ** 4096;
 
-    var ite = try OpenDictionaryFile("testdata/jisyo.utf8.withheader", &buf);
+    var ite = try open("testdata/jisyo.utf8.withheader", &buf);
     defer ite.deinit();
 
     while (try ite.next(&conv_buf)) |ent| {
@@ -125,7 +125,7 @@ test "skk utf-8 no header" {
 
     var buf = [_]u8{0} ** 4096;
     var conv_buf = [_]u8{0} ** 4096;
-    var ite = try OpenDictionaryFile("testdata/jisyo.utf8", &buf);
+    var ite = try open("testdata/jisyo.utf8", &buf);
     defer ite.deinit();
 
     while (try ite.next(&conv_buf)) |ent| {
@@ -159,7 +159,7 @@ test "skk euc-jp no header" {
     var buf = [_]u8{0} ** 4096;
     var conv_buf = [_]u8{0} ** 4096;
 
-    var ite = try OpenDictionaryFile("testdata/jisyo.euc-jp", &buf);
+    var ite = try open("testdata/jisyo.euc-jp", &buf);
     defer ite.deinit();
 
     while (try ite.next(&conv_buf)) |ent| {

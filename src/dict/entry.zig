@@ -33,12 +33,11 @@ pub fn compare(a: *Entry, b: *Entry, _: ?*void) c_int {
     }
 }
 
-pub fn initFrom(alloc: std.mem.Allocator, k: []const u8, c: []const u8) !Entry {
+pub fn init(alloc: std.mem.Allocator, k: []const u8, c: []const u8) !Entry {
     const len = 4 + k.len + c.len;
     const data = try alloc.alloc(u8, len);
     var entry = Entry{ .data = data.ptr };
-    entry.writeKey(k);
-    entry.writeCandidate(c);
+    entry.write(k, c);
 
     return entry;
 }
@@ -56,15 +55,13 @@ fn candidateLen(self: Entry) usize {
     return self.readU16(2);
 }
 
-fn writeKey(self: Entry, val: []const u8) void {
-    self.writeU16(0, val.len);
-    std.mem.copyBackwards(u8, self.data[4..(4 + val.len)], val);
-}
+fn write(self: Entry, k: []const u8, c: []const u8) void {
+    self.writeU16(0, k.len);
+    std.mem.copyBackwards(u8, self.data[4..(4 + k.len)], k);
 
-fn writeCandidate(self: Entry, val: []const u8) void {
-    self.writeU16(2, val.len);
-    const offset = 4 + self.keyLen();
-    std.mem.copyBackwards(u8, self.data[offset..(offset + val.len)], val);
+    self.writeU16(2, c.len);
+    const offset = 4 + k.len;
+    std.mem.copyBackwards(u8, self.data[offset..(offset + c.len)], c);
 }
 
 fn readU16(self: Entry, offset: usize) usize {
@@ -81,7 +78,7 @@ fn writeU16(self: Entry, offset: usize, value: usize) void {
 test "entry" {
     const alloc = std.testing.allocator;
     {
-        var ent = try Entry.initFrom(alloc, "", "");
+        var ent = try Entry.init(alloc, "", "");
         defer ent.deinit(alloc);
 
         try require.equal(ent.keyLen(), @as(usize, 0));
@@ -92,7 +89,7 @@ test "entry" {
     }
 
     {
-        var ent = try Entry.initFrom(alloc, "test_key", "");
+        var ent = try Entry.init(alloc, "test_key", "");
         defer ent.deinit(alloc);
 
         try require.equal(ent.keyLen(), @as(usize, 8));
@@ -103,7 +100,7 @@ test "entry" {
     }
 
     {
-        var ent = try Entry.initFrom(alloc, "", "test_candidate");
+        var ent = try Entry.init(alloc, "", "test_candidate");
         defer ent.deinit(alloc);
 
         try require.equal(ent.keyLen(), @as(usize, 0));
@@ -113,7 +110,7 @@ test "entry" {
         try require.equal(ent.candidate(), "test_candidate");
     }
     {
-        var ent = try Entry.initFrom(alloc, "test_key", "test_candidate");
+        var ent = try Entry.init(alloc, "test_key", "test_candidate");
         defer ent.deinit(alloc);
 
         try require.equal(ent.keyLen(), @as(usize, 8));
@@ -126,9 +123,9 @@ test "entry" {
 
 test "entry compare" {
     const alloc = std.testing.allocator;
-    var a = try Entry.initFrom(alloc, "a", "");
+    var a = try Entry.init(alloc, "a", "");
     defer a.deinit(alloc);
-    var b = try Entry.initFrom(alloc, "b", "");
+    var b = try Entry.init(alloc, "b", "");
     defer b.deinit(alloc);
 
     {
