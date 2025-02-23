@@ -1,6 +1,7 @@
 const std = @import("std");
 const cli = @import("zig-cli");
 const builtin = @import("builtin");
+const log = @import("zutils").log;
 const version = @import("version.zig");
 const cmd = @import("cmd/cmd.zig");
 
@@ -11,6 +12,8 @@ pub const std_options: std.Options = .{
 var verbose: bool = false;
 
 pub fn main() !void {
+    log.init();
+
     var buf: [1024]u8 = undefined;
     var fba = std.heap.FixedBufferAllocator.init(&buf);
     const allocator = fba.allocator();
@@ -77,14 +80,14 @@ pub fn main() !void {
 
 fn serve() !void {
     if (verbose) {
-        @import("utils/utils.zig").log.setLevel(.debug);
+        log.setLevel(.debug);
     }
     try cmd.serve();
 }
 
 fn update() !void {
     if (verbose) {
-        @import("utils/utils.zig").log.setLevel(.debug);
+        log.setLevel(.debug);
     }
     try cmd.update();
 }

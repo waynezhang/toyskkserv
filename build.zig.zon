@@ -38,6 +38,10 @@
             .url = "git+https://github.com/waynezhang/temp.zig#1d338cadd69bc1bd1a6a380efc68aaa4b2873ae7",
             .hash = "122053f8909d6819c8576041b28402d1d0178bd204c6f13eaaa3a08a6104d050278a",
         },
+        .zutils = .{
+            .url = "git+https://github.com/waynezhang/zutils#efb4b281d2e208e0b3acf373b95f33646a247214",
+            .hash = "1220cfbf7551b661e52f25a8190857c4f4f0798e433104a3350dcc1c5188a5bf2568",
+        },
     },
     .paths = .{
         "build.zig",

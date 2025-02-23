@@ -1,8 +1,8 @@
 const std = @import("std");
+const log = @import("zutils").log;
 const Server = @import("../server/server.zig").Server;
 const config = @import("../config.zig");
 const jdz_allocator = @import("jdz_allocator");
-const utils = @import("../utils/utils.zig");
 const dict = @import("../dict/dict.zig");
 
 pub fn serve() !void {
@@ -16,11 +16,11 @@ pub fn serve() !void {
     };
     var cfg = config.loadConfig(allocator) catch |err| switch (err) {
         error.NoConfigFound => {
-            utils.log.err("No config file found in following paths.\n{s}", .{config_files});
+            log.err("No config file found in following paths.\n{s}", .{config_files});
             return;
         },
         else => {
-            utils.log.err("Failed to parse config due to {}", .{err});
+            log.err("Failed to parse config due to {}", .{err});
             return;
         },
     };
@@ -35,7 +35,7 @@ pub fn serve() !void {
         \\    Fallback to Google: {}
         \\    Dictionaries Count: {d}
     ;
-    utils.log.info(fmt, .{ cfg.dictionary_directory, cfg.listen_addr, cfg.fallback_to_google, cfg.dictionaries.len });
+    log.info(fmt, .{ cfg.dictionary_directory, cfg.listen_addr, cfg.fallback_to_google, cfg.dictionaries.len });
 
     {
         // jdz is causing crash on download
@@ -46,14 +46,14 @@ pub fn serve() !void {
             if (deinit_status == .leak) unreachable;
         }
 
-        utils.log.info("Start downloading missing dictionaries", .{});
+        log.info("Start downloading missing dictionaries", .{});
         dict.Location.downloadDicts(
             download_alloc,
             cfg.dictionaries,
             cfg.dictionary_directory,
             false,
         ) catch |err| {
-            utils.log.err("Download failed due to {}", .{err});
+            log.err("Download failed due to {}", .{err});
         };
     }
 
@@ -69,7 +69,7 @@ pub fn serve() !void {
     });
 
     server.serve(cfg.dictionaries) catch |err| {
-        utils.log.err("Failed to start server due to {}", .{err});
+        log.err("Failed to start server due to {}", .{err});
     };
-    utils.log.info("Server exited", .{});
+    log.info("Server exited", .{});
 }

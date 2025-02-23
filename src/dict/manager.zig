@@ -1,8 +1,8 @@
 const std = @import("std");
+const log = @import("zutils").log;
 const btree = @import("btree-zig");
 const Location = @import("location.zig");
 const skk = @import("../skk/skk.zig");
-const utils = @import("../utils/utils.zig");
 const Entry = @import("entry.zig");
 const require = @import("protest").require;
 
@@ -142,23 +142,23 @@ test "DictManager" {
 }
 
 fn loadFiles(self: *const Self, filenames: []const []const u8) !void {
-    utils.log.info("Start loading dictionaries", .{});
+    log.info("Start loading dictionaries", .{});
 
     var loaded: i16 = 0;
     for (filenames) |filename| {
         loadFile(self.allocator, self.tree, filename) catch |err| {
-            utils.log.err("Failed to open file {s} due to {}", .{ filename, err });
+            log.err("Failed to open file {s} due to {}", .{ filename, err });
             continue;
         };
 
         loaded += 1;
     }
 
-    utils.log.info("Loaded {d}/{d} dictionaries, {d} entries", .{ loaded, filenames.len, self.tree.count() });
+    log.info("Loaded {d}/{d} dictionaries, {d} entries", .{ loaded, filenames.len, self.tree.count() });
 }
 
 fn loadFile(allocator: std.mem.Allocator, tree: *btree.Btree(Entry, void), filename: []const u8) !void {
-    utils.log.debug("Processing file {s}", .{std.fs.path.basename(filename)});
+    log.debug("Processing file {s}", .{std.fs.path.basename(filename)});
 
     var line_buf = [_]u8{0} ** 4096;
     var conv_buf = [_]u8{0} ** 4096;
@@ -168,7 +168,7 @@ fn loadFile(allocator: std.mem.Allocator, tree: *btree.Btree(Entry, void), filen
 
     while (try ite.next(&conv_buf)) |pair| {
         processLine(allocator, tree, pair.key, pair.candidate) catch |err| {
-            utils.log.err("Failed to process line {s} due to {}", .{ pair.key, err });
+            log.err("Failed to process line {s} due to {}", .{ pair.key, err });
         };
     }
 }

@@ -11,6 +11,7 @@ pub fn build(b: *std.Build) void {
         .{ .name = "jdz_allocator" },
         .{ .name = "network" },
         .{ .name = "temp" },
+        .{ .name = "zutils" },
         .{
             .name = "euc-jis-2004-zig",
             .module = "euc-jis-2004",

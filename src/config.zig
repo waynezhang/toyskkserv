@@ -1,7 +1,7 @@
 const std = @import("std");
 const zgf = @import("zon_get_fields");
-const utils = @import("utils/utils.zig");
 const dict = @import("dict/dict.zig");
+const zutils = @import("zutils");
 
 const require = @import("protest").require;
 
@@ -15,7 +15,7 @@ dictionaries: []dict.Location = &.{},
 pub fn init(alloc: std.mem.Allocator, ast: std.zig.Ast) !Self {
     var cfg = Self{};
 
-    cfg.dictionary_directory = try utils.fs.toAbsolutePath(
+    cfg.dictionary_directory = try zutils.fs.toAbsolutePathAlloc(
         alloc,
         zgf.getFieldVal([]const u8, ast, "dictionary_directory") catch "./toyskkserv-cache",
         null,
@@ -84,12 +84,12 @@ fn loadLocation(alloc: std.mem.Allocator, ast: std.zig.Ast, index: i16) !dict.Lo
 
 fn parseConfig(allocator: std.mem.Allocator, files: []const []const u8) !*Self {
     for (files) |file| {
-        const path = utils.fs.toAbsolutePath(allocator, file, null) catch {
+        const path = zutils.fs.toAbsolutePathAlloc(allocator, file, null) catch {
             continue;
         };
         defer allocator.free(path);
 
-        utils.log.debug("Found config file at {s}", .{path});
+        zutils.log.debug("Found config file at {s}", .{path});
         const txt = std.fs.cwd().readFileAllocOptions(allocator, path, std.math.maxInt(usize), null, @alignOf(u8), 0) catch {
             continue;
         };
