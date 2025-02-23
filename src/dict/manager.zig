@@ -154,7 +154,7 @@ fn loadFiles(self: *const Self, filenames: []const []const u8) !void {
         loaded += 1;
     }
 
-    utils.log.info("Loaded {d}/{d} dictionaries", .{ loaded, filenames.len });
+    utils.log.info("Loaded {d}/{d} dictionaries, {d} entries", .{ loaded, filenames.len, self.tree.count() });
 }
 
 fn loadFile(allocator: std.mem.Allocator, tree: *btree.Btree(Entry, void), filename: []const u8) !void {
