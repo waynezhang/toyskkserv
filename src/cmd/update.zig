@@ -1,6 +1,6 @@
 const std = @import("std");
 const config = @import("../config.zig");
-const utils = @import("../utils/utils.zig");
+const log = @import("zutils").log;
 const dict = @import("../dict/dict.zig");
 
 pub fn update() !void {
@@ -12,7 +12,7 @@ pub fn update() !void {
     const alloc = gpa.allocator();
 
     const cfg = config.loadConfig(alloc) catch |err| {
-        utils.log.err("Failed to load config file due to {}", .{err});
+        log.err("Failed to load config file due to {}", .{err});
         return;
     };
     defer {
@@ -20,13 +20,13 @@ pub fn update() !void {
         alloc.destroy(cfg);
     }
 
-    utils.log.info("Start updating at {s}", .{cfg.dictionary_directory});
+    log.info("Start updating at {s}", .{cfg.dictionary_directory});
     dict.Location.downloadDicts(
         alloc,
         cfg.dictionaries,
         cfg.dictionary_directory,
         true,
     ) catch |err| {
-        utils.log.err("Download failed due to {}", .{err});
+        log.err("Download failed due to {}", .{err});
     };
 }

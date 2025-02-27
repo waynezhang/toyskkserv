@@ -16,8 +16,8 @@ jobs:
 
     - name: Set up Zig
       uses: mlugg/setup-zig@v1
-        with:
-          version: master
+      with:
+        version: master
     
     - name: Generate change log
       run: ./scripts/changelog > /tmp/release-note.md

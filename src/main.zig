@@ -1,90 +1,86 @@
 const std = @import("std");
-const cli = @import("zig-cli");
 const builtin = @import("builtin");
+const log = @import("zutils").log;
 const version = @import("version.zig");
 const cmd = @import("cmd/cmd.zig");
+const pargs = @import("parg");
+const jdz_allocator = @import("jdz_allocator");
 
 pub const std_options: std.Options = .{
     .log_level = .err,
 };
 
-var verbose: bool = false;
-
 pub fn main() !void {
-    var buf: [1024]u8 = undefined;
-    var fba = std.heap.FixedBufferAllocator.init(&buf);
-    const allocator = fba.allocator();
+    log.init();
 
-    var r = try cli.AppRunner.init(allocator);
-    const app = cli.App{
-        .command = cli.Command{
-            .name = "toyskkserv",
-            .target = cli.CommandTarget{
-                .subcommands = &[_]cli.Command{
-                    .{
-                        .name = "serve",
-                        .description = .{
-                            .one_line = "Start skkserv",
-                        },
-                        .target = cli.CommandTarget{
-                            .action = cli.CommandAction{ .exec = serve },
-                        },
-                        .options = &[_]cli.Option{
-                            .{
-                                .long_name = "verbose",
-                                .short_alias = 'v',
-                                .help = "Enable more output",
-                                .value_ref = r.mkRef(&verbose),
-                            },
-                        },
-                    },
-                    .{
-                        .name = "update",
-                        .description = .{
-                            .one_line = "Force re-download all dictionaires",
-                        },
-                        .target = cli.CommandTarget{
-                            .action = cli.CommandAction{ .exec = update },
-                        },
-                        .options = &[_]cli.Option{
-                            .{
-                                .long_name = "verbose",
-                                .short_alias = 'v',
-                                .help = "Enable more output",
-                                .value_ref = r.mkRef(&verbose),
-                            },
-                        },
-                    },
-                    .{
-                        .name = "reload",
-                        .description = .{
-                            .one_line = "Tell skkserv to reload dictionaries",
-                        },
-                        .target = cli.CommandTarget{
-                            .action = cli.CommandAction{ .exec = cmd.reload },
-                        },
-                    },
-                },
+    var jdz = jdz_allocator.JdzAllocator(.{}).init();
+    defer jdz.deinit();
+    const alloc = jdz.allocator();
+
+    var verbose = false;
+    var cmd_str: ?[]const u8 = null;
+
+    var p = try pargs.parseProcess(alloc, .{});
+    defer p.deinit();
+    _ = p.nextValue(); // skip executable name
+
+    while (p.next()) |token| {
+        switch (token) {
+            .flag => |flag| {
+                if (flag.isLong("verbose") or flag.isShort("v")) {
+                    verbose = true;
+                } else if (flag.isLong("help") or flag.isShort("h")) {
+                    cmd_str = "help";
+                }
             },
-        },
-        .version = version.Version,
-        .help_config = .{
-            .color_usage = .never,
-        },
+            .arg => |val| {
+                if (cmd_str == null)
+                    cmd_str = val;
+            },
+            .unexpected_value => @panic("Invalid argumnts"),
+        }
+    }
+
+    if (verbose) log.setLevel(.debug);
+
+    const fallback = cmd_str orelse "help";
+    runCmd(fallback) catch |err| {
+        log.err("Failed to {s} due to {s}", .{ fallback, @errorName(err) });
     };
-    return r.run(&app);
 }
 
-fn serve() !void {
-    if (verbose) {
-        @import("utils/utils.zig").log.setLevel(.debug);
+fn runCmd(c: []const u8) !void {
+    if (std.mem.eql(u8, c, "serve")) {
+        try cmd.serve();
+    } else if (std.mem.eql(u8, c, "update")) {
+        try cmd.update();
+    } else if (std.mem.eql(u8, c, "reload")) {
+        try cmd.reload();
+    } else if (std.mem.eql(u8, c, "version")) {
+        showVersion();
+    } else {
+        showHelp();
     }
-    try cmd.serve();
 }
 
-fn update() !void {
-    if (verbose) {
-        @import("utils/utils.zig").log.setLevel(.debug);
-    }
-    try cmd.update();
+fn showHelp() void {
+    const help =
+        \\usage: toyskkserv command [flags]
+        \\
+        \\commands:
+        \\  serve    Start skkserv
+        \\  update   Force re-download all dictionaires
+        \\  reload   Tell skkserv to reload dictionaries
+        \\  version  Show version information
+        \\
+        \\flags:
+        \\  -h, --help            Show this help output
+        \\  -v, --verbose         Verbose mode
+    ;
+    log.info("{s}", .{help});
+    std.process.exit(0);
+}
+fn showVersion() void {
+    log.info("{s}", .{version.FullDescription});
+    std.process.exit(0);
 }

@@ -3,7 +3,7 @@ const builtin = @import("builtin");
 const network = @import("network");
 const euc_jp = @import("euc-jis-2004-zig");
 const req_handlers = @import("handlers.zig");
-const utils = @import("../utils/utils.zig");
+const log = @import("zutils").log;
 const version = @import("../version.zig");
 const dict = @import("../dict/dict.zig");
 
@@ -76,8 +76,9 @@ pub fn serve(self: *Self, dicts: []dict.Location) !void {
     defer self.dict_mgr.deinit();
 
     try network.init();
-    var server_socket = try network.Socket.create(network.AddressFamily.ipv4, network.Protocol.tcp);
     const endpoint = try network.EndPoint.parse(self.listen_addr);
+
+    var server_socket = try network.Socket.create(@as(network.AddressFamily, endpoint.address), network.Protocol.tcp);
     try server_socket.enablePortReuse(true);
 
     try server_socket.bind(endpoint);
@@ -97,7 +98,7 @@ pub fn serve(self: *Self, dicts: []dict.Location) !void {
         arr.deinit();
     }
 
-    utils.log.info("Listening at {s}", .{self.listen_addr});
+    log.info("Listening at {s}", .{self.listen_addr});
 
     var buf = [_]u8{0} ** 4096;
     var write_buf = std.ArrayList(u8).init(self.allocator);
@@ -109,7 +110,7 @@ pub fn serve(self: *Self, dicts: []dict.Location) !void {
             const client_socket = try server_socket.accept();
 
             const addr = try client_socket.getRemoteEndPoint();
-            utils.log.info("New connection from {}", .{addr});
+            log.info("New connection from {}", .{addr});
 
             try arr.append(client_socket);
             try ss.add(client_socket, socket_event);
@@ -122,7 +123,7 @@ pub fn serve(self: *Self, dicts: []dict.Location) !void {
                         return;
                     },
                     else => {
-                        utils.log.info("Connection disconnected", .{});
+                        log.info("Connection disconnected", .{});
                         socket.close();
                         ss.remove(socket);
                         _ = arr.swapRemove(i);
@@ -144,14 +145,14 @@ fn handleMessage(self: *Self, socket: network.Socket, buf: []u8, output: *std.Ar
     var conv_buf = [_]u8{0} ** 4096;
     const line = try euc_jp.convertEucJpToUtf8(std.mem.trim(u8, buf[0..read], " \n"), &conv_buf);
 
-    utils.log.info("Request: {s}", .{line});
+    log.info("Request: {s}", .{line});
     if (line.len == 0) {
         return;
     }
 
     const cmd = line[0] - '0';
     if (cmd >= self.handlers.len) {
-        utils.log.info("Invalid request: {s}", .{line});
+        log.info("Invalid request: {s}", .{line});
         return;
     }
 

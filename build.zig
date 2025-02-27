@@ -5,12 +5,13 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
     const name = "toyskkserv";
     const deps = &[_]Dep{
-        .{ .name = "zig-cli" },
         .{ .name = "zon_get_fields" },
         .{ .name = "percent_encoding" },
         .{ .name = "jdz_allocator" },
         .{ .name = "network" },
         .{ .name = "temp" },
+        .{ .name = "zutils" },
+        .{ .name = "parg" },
         .{
             .name = "euc-jis-2004-zig",
             .module = "euc-jis-2004",

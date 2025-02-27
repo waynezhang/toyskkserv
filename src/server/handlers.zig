@@ -1,6 +1,6 @@
 const std = @import("std");
 const resp = @import("response.zig");
-const utils = @import("../utils/utils.zig");
+const log = @import("zutils").log;
 const dict = @import("../dict/dict.zig");
 const google_api = @import("google_api.zig");
 const config = @import("../config.zig");
@@ -78,10 +78,10 @@ pub const CandidateHandler = struct {
             return try resp.generateResponse(buffer, line, "");
         }
 
-        utils.log.debug("Fallback to google", .{});
+        log.debug("Fallback to google", .{});
 
         const fallback = google_api.transliterateRequest(alloc, line) catch |err| {
-            utils.log.err("Failed to make request due to {}", .{err});
+            log.err("Failed to make request due to {}", .{err});
             return try resp.generateResponse(buffer, line, "");
         };
         defer alloc.free(fallback);
@@ -205,15 +205,15 @@ pub const CustomProtocolHandler = struct {
 
     fn handle(self: CustomProtocolHandler, alloc: std.mem.Allocator, _: *std.ArrayList(u8), req: []const u8) !void {
         if (std.mem.eql(u8, req, "reload")) {
-            utils.log.info("Reload", .{});
+            log.info("Reload", .{});
 
             self.reload(alloc) catch |err| {
-                utils.log.err("Failed to reload dictionaries due to {}", .{err});
+                log.err("Failed to reload dictionaries due to {}", .{err});
             };
             return;
         }
 
-        utils.log.err("Not implemented command {s}", .{req});
+        log.err("Not implemented command {s}", .{req});
     }
 
     fn reload(self: CustomProtocolHandler, alloc: std.mem.Allocator) !void {
