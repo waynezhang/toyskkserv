@@ -23,8 +23,8 @@
             .hash = "1220cb38c3002d829cd1d58c4f988553c64f3fac4f918cb0303867eb1cb2b1654765",
         },
         .network = .{
-            .url = "git+https://github.com/ikskuh/zig-network#8db1aa2f5efdf1e2ff6dd5f5f8efe1b4f44ff978",
-            .hash = "12203ae90636504172540e6e0feb2881affd82768af6f0a379cb84a3f70b53705fe5",
+            .url = "git+https://github.com/waynezhang/zig-network#8d7fba800850d650ced0041b123066673c108ee9",
+            .hash = "122010eb328f52bb226dda468acc6577d7ed50a19d32f7024a96a3eabcb1180d5c02",
         },
         .@"euc-jis-2004-zig" = .{
             .url = "git+https://github.com/waynezhang/euc-jis-2004-zig#5a3be46c07f429723454a3121c13a76963e5de1f",

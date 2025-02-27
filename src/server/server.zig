@@ -76,8 +76,9 @@ pub fn serve(self: *Self, dicts: []dict.Location) !void {
     defer self.dict_mgr.deinit();
 
     try network.init();
-    var server_socket = try network.Socket.create(network.AddressFamily.ipv4, network.Protocol.tcp);
     const endpoint = try network.EndPoint.parse(self.listen_addr);
+
+    var server_socket = try network.Socket.create(@as(network.AddressFamily, endpoint.address), network.Protocol.tcp);
     try server_socket.enablePortReuse(true);
 
     try server_socket.bind(endpoint);
