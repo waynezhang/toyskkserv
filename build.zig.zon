@@ -2,10 +2,6 @@
     .name = "toyskkserv",
     .version = "0.0.6",
     .dependencies = .{
-        .@"zig-cli" = .{
-            .url = "git+https://github.com/sam701/zig-cli#3c51a0496c579d0e6db650da74523f0e0939ba69",
-            .hash = "1220f6f9a6aadef20b6d820226f7076abfd634a71e67aa67ccf770fb8381883853b0",
-        },
         .@"btree-zig" = .{
             .url = "git+https://github.com/almmiko/btree.c-zig#fc0d08558b5104991ae43c04d7b7c10a4be49aa7",
             .hash = "1220c31ffe3b2e372cd02427548d21ea799f466772237e136326040406561096f7f3",
@@ -41,6 +37,10 @@
         .zutils = .{
             .url = "git+https://github.com/waynezhang/zutils#efb4b281d2e208e0b3acf373b95f33646a247214",
             .hash = "1220cfbf7551b661e52f25a8190857c4f4f0798e433104a3350dcc1c5188a5bf2568",
+        },
+        .parg = .{
+            .url = "git+https://github.com/judofyr/parg#229fa709c1fc2e94490a736e17151cb85a328a81",
+            .hash = "1220b3da27690b99a15babef2e56d74d4683eb06ad0c2ac35ef883767177556bb344",
         },
     },
     .paths = .{
