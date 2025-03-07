@@ -1,6 +1,6 @@
 const std = @import("std");
 const log = @import("zutils").log;
-const btree = @import("btree-zig");
+const btree = @import("btree_zig");
 const Location = @import("location.zig");
 const skk = @import("../skk/skk.zig");
 const Entry = @import("entry.zig");

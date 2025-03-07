@@ -7,17 +7,16 @@ pub fn build(b: *std.Build) void {
     const deps = &[_]Dep{
         .{ .name = "zon_get_fields" },
         .{ .name = "percent_encoding" },
-        .{ .name = "jdz_allocator" },
         .{ .name = "network" },
         .{ .name = "temp" },
         .{ .name = "zutils" },
         .{ .name = "parg" },
         .{
-            .name = "euc-jis-2004-zig",
+            .name = "euc_jis_2004_zig",
             .module = "euc-jis-2004",
         },
         .{
-            .name = "btree-zig",
+            .name = "btree_zig",
             .module = "btree_c_zig",
             .link = "btree-zig",
         },

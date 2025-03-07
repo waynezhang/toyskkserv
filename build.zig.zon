@@ -1,46 +1,43 @@
 .{
-    .name = "toyskkserv",
+    .name = .toyskkserv,
     .version = "0.0.6",
+    .fingerprint = 0xee4533edf56159fb,
     .dependencies = .{
-        .@"btree-zig" = .{
-            .url = "git+https://github.com/almmiko/btree.c-zig#fc0d08558b5104991ae43c04d7b7c10a4be49aa7",
-            .hash = "1220c31ffe3b2e372cd02427548d21ea799f466772237e136326040406561096f7f3",
+        .btree_zig = .{
+            .url = "git+https://github.com/waynezhang/btree.c-zig#6b0777b60be2339051879e9f8f52e822f4f930ef",
+            .hash = "btree_zig-0.0.1-HRfT6hw2AACw3JQn2hnVoh_W83j6o8LzyRt7no2FMKvh",
         },
         .protest = .{
-            .url = "git+https://github.com/waynezhang/protest#da9b761a44ec7ec954dcad6fdd05c35bfe1ae19e",
-            .hash = "1220404b0700de6e5c093f0ff22656dd9c74f654dcdfbb402b59900459da06c39316",
+            .url = "git+https://github.com/waynezhang/protest#b194504ba4b130f3f636c59b5cb53f39256b231a",
+            .hash = "protest-0.1.0-PvViiK27AAAf7RwKNwRPsrHtjsTUkk-QxX2UD9Sj7njB",
         },
         .percent_encoding = .{
             .url = "git+https://github.com/bcrist/zig-percent-encoding#5bb61c66cabf8cd7724f1539ad5c4c421ebd2c4c",
-            .hash = "12208ce96000d7263c362543c19236d68cbf1f05c69c7305ed4915db82970719c61d",
+            .hash = "percent_encoding-0.0.3-AAAAACdvAACM6WAA1yY8NiVDwZI21oy_HwXGnHMF7UkV",
         },
         .zon_get_fields = .{
             .url = "git+https://github.com/Durobot/zon_get_fields#47d458f0d9f20b37b6c21eb7a7ee061b8787dfa4",
-            .hash = "1220ccd7cf0b4010204350957157f574e7beaef6bdcb522bb78cd25c7bb0613e9891",
-        },
-        .jdz_allocator = .{
-            .url = "git+https://github.com/kython28/jdz_allocator#f87c3eefbcdcca0034a5de15bdbc559185b0de71",
-            .hash = "1220cb38c3002d829cd1d58c4f988553c64f3fac4f918cb0303867eb1cb2b1654765",
+            .hash = "zon_get_fields-0.1.0-AAAAAC4dAgDM188LQBAgQ1CVcVf1dOe-rva9y1Irt4zS",
         },
         .network = .{
             .url = "git+https://github.com/ikskuh/zig-network#c76240d2240711a3dcbf1c0fb461d5d1f18be79a",
-            .hash = "122010eb328f52bb226dda468acc6577d7ed50a19d32f7024a96a3eabcb1180d5c02",
+            .hash = "network-0.1.0-AAAAAOwlAQAQ6zKPUrsibdpGisxld9ftUKGdMvcCSpaj",
         },
-        .@"euc-jis-2004-zig" = .{
-            .url = "git+https://github.com/waynezhang/euc-jis-2004-zig#5a3be46c07f429723454a3121c13a76963e5de1f",
-            .hash = "12202d1fa220984efd18d4b2a095b95591a1fd458ec112c2148ecb61f8594fd9ad11",
+        .euc_jis_2004_zig = .{
+            .url = "git+https://github.com/waynezhang/euc-jis-2004-zig#a45a28945700210cf0b4871a9650e6e5dd17be11",
+            .hash = "euc_jis_2004_zig-0.0.2-M5nQCve4BgCiViK5J1OKia3_kswly9P6izEng1BB6Vft",
         },
         .temp = .{
-            .url = "git+https://github.com/waynezhang/temp.zig#1d338cadd69bc1bd1a6a380efc68aaa4b2873ae7",
-            .hash = "122053f8909d6819c8576041b28402d1d0178bd204c6f13eaaa3a08a6104d050278a",
+            .url = "git+https://github.com/abhinav/temp.zig#382a711f253d54a88f222650e6c03b62411373c6",
+            .hash = "temp-0.3.0-Ogl1FSSBAAB2WXv3QbTYO3NYfVFoYTBkZsVK3MYvbxFE",
         },
         .zutils = .{
-            .url = "git+https://github.com/waynezhang/zutils#efb4b281d2e208e0b3acf373b95f33646a247214",
-            .hash = "1220cfbf7551b661e52f25a8190857c4f4f0798e433104a3350dcc1c5188a5bf2568",
+            .url = "git+https://github.com/waynezhang/zutils#c6eef7c7351508589ab5352699982cc988379183",
+            .hash = "zutils-0.0.1-jNUB2pxGAAAVcKxDo3gGSQYhicbd5ctPYyGMR2Ju2c9u",
         },
         .parg = .{
             .url = "git+https://github.com/judofyr/parg#229fa709c1fc2e94490a736e17151cb85a328a81",
-            .hash = "1220b3da27690b99a15babef2e56d74d4683eb06ad0c2ac35ef883767177556bb344",
+            .hash = "parg-0.0.0-AAAAAFdXAACz2idpC5mhW6vvLlbXTUaD6watDCrDXviD",
         },
     },
     .paths = .{

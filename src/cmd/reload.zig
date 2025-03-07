@@ -3,14 +3,7 @@ const config = @import("../config.zig");
 const zutils = @import("zutils");
 const log = std.log;
 
-pub fn reload() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer {
-        const check = gpa.deinit();
-        if (check == .leak) unreachable;
-    }
-    const alloc = gpa.allocator();
-
+pub fn reload(alloc: std.mem.Allocator) !void {
     const cfg = config.loadConfig(alloc) catch |err| {
         log.err("Failed to load config file due to {}", .{err});
         return;

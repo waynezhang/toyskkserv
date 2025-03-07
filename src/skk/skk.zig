@@ -1,5 +1,5 @@
 const std = @import("std");
-const euc_jp = @import("euc-jis-2004-zig");
+const euc_jp = @import("euc_jis_2004_zig");
 
 const require = @import("protest").require;
 

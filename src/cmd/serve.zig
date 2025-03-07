@@ -5,11 +5,7 @@ const config = @import("../config.zig");
 const jdz_allocator = @import("jdz_allocator");
 const dict = @import("../dict/dict.zig");
 
-pub fn serve() !void {
-    var jdz = jdz_allocator.JdzAllocator(.{}).init();
-    defer jdz.deinit();
-    const allocator = jdz.allocator();
-
+pub fn serve(allocator: std.mem.Allocator) !void {
     const config_files = [_][]const u8{
         "./toyskkserv.zon",
         "~/.config/toyskkserv.zon",
@@ -37,25 +33,15 @@ pub fn serve() !void {
     ;
     log.info(fmt, .{ cfg.dictionary_directory, cfg.listen_addr, cfg.fallback_to_google, cfg.dictionaries.len });
 
-    {
-        // jdz is causing crash on download
-        var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-        const download_alloc = gpa.allocator();
-        defer {
-            const deinit_status = gpa.deinit();
-            if (deinit_status == .leak) unreachable;
-        }
-
-        log.info("Start downloading missing dictionaries", .{});
-        dict.Location.downloadDicts(
-            download_alloc,
-            cfg.dictionaries,
-            cfg.dictionary_directory,
-            false,
-        ) catch |err| {
-            log.err("Download failed due to {}", .{err});
-        };
-    }
+    log.info("Start downloading missing dictionaries", .{});
+    dict.Location.downloadDicts(
+        allocator,
+        cfg.dictionaries,
+        cfg.dictionary_directory,
+        false,
+    ) catch |err| {
+        log.err("Download failed due to {}", .{err});
+    };
 
     const server = try allocator.create(Server);
     defer {

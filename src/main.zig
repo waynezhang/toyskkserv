@@ -4,18 +4,22 @@ const log = @import("zutils").log;
 const version = @import("version.zig");
 const cmd = @import("cmd/cmd.zig");
 const pargs = @import("parg");
-const jdz_allocator = @import("jdz_allocator");
 
 pub const std_options: std.Options = .{
     .log_level = .err,
 };
 
 pub fn main() !void {
-    log.init();
+    var debug_allocator: std.heap.DebugAllocator(.{}) = .init;
+    const alloc, const is_debug = switch (builtin.mode) {
+        .Debug, .ReleaseSafe => .{ debug_allocator.allocator(), true },
+        .ReleaseFast, .ReleaseSmall => .{ std.heap.smp_allocator, false },
+    };
+    defer if (is_debug) {
+        _ = debug_allocator.deinit();
+    };
 
-    var jdz = jdz_allocator.JdzAllocator(.{}).init();
-    defer jdz.deinit();
-    const alloc = jdz.allocator();
+    log.init();
 
     var verbose = false;
     var cmd_str: ?[]const u8 = null;
@@ -44,18 +48,18 @@ pub fn main() !void {
     if (verbose) log.setLevel(.debug);
 
     const fallback = cmd_str orelse "help";
-    runCmd(fallback) catch |err| {
+    runCmd(fallback, alloc) catch |err| {
         log.err("Failed to {s} due to {s}", .{ fallback, @errorName(err) });
     };
 }
 
-fn runCmd(c: []const u8) !void {
+fn runCmd(c: []const u8, alloc: std.mem.Allocator) !void {
     if (std.mem.eql(u8, c, "serve")) {
-        try cmd.serve();
+        try cmd.serve(alloc);
     } else if (std.mem.eql(u8, c, "update")) {
-        try cmd.update();
+        try cmd.update(alloc);
     } else if (std.mem.eql(u8, c, "reload")) {
-        try cmd.reload();
+        try cmd.reload(alloc);
     } else if (std.mem.eql(u8, c, "version")) {
         showVersion();
     } else {
@@ -80,6 +84,7 @@ fn showHelp() void {
     log.info("{s}", .{help});
     std.process.exit(0);
 }
+
 fn showVersion() void {
     log.info("{s}", .{version.FullDescription});
     std.process.exit(0);
