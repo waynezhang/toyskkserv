@@ -32,8 +32,8 @@
             .hash = "temp-0.3.0-Ogl1FSSBAAB2WXv3QbTYO3NYfVFoYTBkZsVK3MYvbxFE",
         },
         .zutils = .{
-            .url = "git+https://github.com/waynezhang/zutils#c6eef7c7351508589ab5352699982cc988379183",
-            .hash = "zutils-0.0.1-jNUB2pxGAAAVcKxDo3gGSQYhicbd5ctPYyGMR2Ju2c9u",
+            .url = "git+https://github.com/waynezhang/zutils#689e7fc4b1eae90ea670f69d3d16af7d31cf6d89",
+            .hash = "zutils-0.0.1-jNUB2kJOAAB2DptapeKgMtUDkzXy7GuNbrGoAirdN15H",
         },
         .parg = .{
             .url = "git+https://github.com/judofyr/parg#229fa709c1fc2e94490a736e17151cb85a328a81",

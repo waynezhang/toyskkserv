@@ -76,7 +76,13 @@ pub fn serve(self: *Self, dicts: []dict.Location) !void {
     defer self.dict_mgr.deinit();
 
     try network.init();
-    const endpoint = try network.EndPoint.parse(self.listen_addr);
+
+    const listen_addr = try self.allocator.dupe(u8, self.listen_addr);
+    defer self.allocator.free(listen_addr);
+
+    var len = std.mem.replace(u8, listen_addr, "[", "", listen_addr);
+    len += std.mem.replace(u8, listen_addr, "]", "", listen_addr);
+    const endpoint = try network.EndPoint.parse(listen_addr[0 .. listen_addr.len - len]);
 
     var server_socket = try network.Socket.create(@as(network.AddressFamily, endpoint.address), network.Protocol.tcp);
     try server_socket.enablePortReuse(true);
