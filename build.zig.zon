@@ -11,10 +11,6 @@
             .url = "git+https://github.com/waynezhang/protest#b194504ba4b130f3f636c59b5cb53f39256b231a",
             .hash = "protest-0.1.0-PvViiK27AAAf7RwKNwRPsrHtjsTUkk-QxX2UD9Sj7njB",
         },
-        .percent_encoding = .{
-            .url = "git+https://github.com/bcrist/zig-percent-encoding#5bb61c66cabf8cd7724f1539ad5c4c421ebd2c4c",
-            .hash = "percent_encoding-0.0.3-AAAAACdvAACM6WAA1yY8NiVDwZI21oy_HwXGnHMF7UkV",
-        },
         .zon_get_fields = .{
             .url = "git+https://github.com/Durobot/zon_get_fields#47d458f0d9f20b37b6c21eb7a7ee061b8787dfa4",
             .hash = "zon_get_fields-0.1.0-AAAAAC4dAgDM188LQBAgQ1CVcVf1dOe-rva9y1Irt4zS",
@@ -32,8 +28,8 @@
             .hash = "temp-0.3.0-Ogl1FSSBAAB2WXv3QbTYO3NYfVFoYTBkZsVK3MYvbxFE",
         },
         .zutils = .{
-            .url = "git+https://github.com/waynezhang/zutils#689e7fc4b1eae90ea670f69d3d16af7d31cf6d89",
-            .hash = "zutils-0.0.1-jNUB2kJOAAB2DptapeKgMtUDkzXy7GuNbrGoAirdN15H",
+            .url = "git+https://github.com/waynezhang/zutils#39624670cb2ce77e662bde0063c4d787d3b42597",
+            .hash = "zutils-0.0.1-jNUB2ghVAADkJ9KmPyz5TdUYQdWpFJksgGUCYy02yQIj",
         },
         .parg = .{
             .url = "git+https://github.com/judofyr/parg#229fa709c1fc2e94490a736e17151cb85a328a81",

@@ -6,7 +6,6 @@ pub fn build(b: *std.Build) void {
     const name = "toyskkserv";
     const deps = &[_]Dep{
         .{ .name = "zon_get_fields" },
-        .{ .name = "percent_encoding" },
         .{ .name = "network" },
         .{ .name = "temp" },
         .{ .name = "zutils" },
