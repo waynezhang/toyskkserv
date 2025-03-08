@@ -1,13 +1,19 @@
-## 0.0.9 (2025-02-28)
+## 0.0.9 (2025-03-09)
 
 ### New feature
 
 - ipv6 support ([a0ac94f](https://github.com/waynezhang/toyskkserv/commit/a0ac94ff4a88f675284ea1b75b9d6309626cdf05))
 
+### Fix
+
+- reload doesn't work with ipv6 address ([fccf6ff](https://github.com/waynezhang/toyskkserv/commit/fccf6ff808f96f2502f91efedbb4a4ac78de3425))
+
 ### Refactor
 
+- don't store allocator ([1bb008e](https://github.com/waynezhang/toyskkserv/commit/1bb008e7693ba23deacaddd1363b4d3426df21ff))
 - migrate to parg ([f322faf](https://github.com/waynezhang/toyskkserv/commit/f322faf17c06c0f0809c3f179a5b6bbae074b0c8))
 - minor change ([66f45a6](https://github.com/waynezhang/toyskkserv/commit/66f45a6696e4f7c3437be866278557a5ae8d2ea9))
+- remove dependency of percentage encode ([12ae1e7](https://github.com/waynezhang/toyskkserv/commit/12ae1e75bd765b8e0c02eb4f356550b57cd73ea4))
 - remove some utils funcs ([0ab5d61](https://github.com/waynezhang/toyskkserv/commit/0ab5d611e74447a9f27e0b8dc9edf6581b5a4d0b))
 - rename some funcs ([81d408f](https://github.com/waynezhang/toyskkserv/commit/81d408fe4f324069d7060ba8afa3e7a1e67a70ad))
 
