@@ -11,7 +11,6 @@ const Self = @This();
 
 pub const Server = Self;
 
-allocator: std.mem.Allocator,
 dict_mgr: *dict.Manager,
 listen_addr: []const u8,
 dictionary_directory: []const u8,
@@ -56,7 +55,6 @@ pub fn init(allocator: std.mem.Allocator, context: Context) !Self {
     }
 
     return .{
-        .allocator = allocator,
         .dict_mgr = dict_mgr,
         .listen_addr = try allocator.dupe(u8, context.listen_addr),
         .dictionary_directory = try allocator.dupe(u8, context.dictionary_directory),
@@ -64,21 +62,21 @@ pub fn init(allocator: std.mem.Allocator, context: Context) !Self {
     };
 }
 
-pub fn deinit(self: *Self) void {
-    self.allocator.free(self.listen_addr);
-    self.allocator.free(self.dictionary_directory);
-    self.allocator.free(self.handlers);
-    self.allocator.destroy(self.dict_mgr);
+pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
+    allocator.free(self.listen_addr);
+    allocator.free(self.dictionary_directory);
+    allocator.free(self.handlers);
+    allocator.destroy(self.dict_mgr);
 }
 
-pub fn serve(self: *Self, dicts: []dict.Location) !void {
+pub fn serve(self: *Self, allocator: std.mem.Allocator, dicts: []dict.Location) !void {
     try self.dict_mgr.reloadLocations(dicts, self.dictionary_directory);
     defer self.dict_mgr.deinit();
 
     try network.init();
 
-    const listen_addr = try self.allocator.dupe(u8, self.listen_addr);
-    defer self.allocator.free(listen_addr);
+    const listen_addr = try allocator.dupe(u8, self.listen_addr);
+    defer allocator.free(listen_addr);
 
     var len = std.mem.replace(u8, listen_addr, "[", "", listen_addr);
     len += std.mem.replace(u8, listen_addr, "]", "", listen_addr);
@@ -90,7 +88,7 @@ pub fn serve(self: *Self, dicts: []dict.Location) !void {
     try server_socket.bind(endpoint);
     try server_socket.listen();
 
-    var ss = try network.SocketSet.init(self.allocator);
+    var ss = try network.SocketSet.init(allocator);
     defer ss.deinit();
 
     const socket_event: network.SocketEvent = .{
@@ -99,15 +97,13 @@ pub fn serve(self: *Self, dicts: []dict.Location) !void {
     };
     try ss.add(server_socket, socket_event);
 
-    var arr = std.ArrayList(network.Socket).init(self.allocator);
-    defer {
-        arr.deinit();
-    }
+    var arr: std.ArrayList(network.Socket) = .init(allocator);
+    defer arr.deinit();
 
     log.info("Listening at {s}", .{self.listen_addr});
 
     var buf = [_]u8{0} ** 4096;
-    var write_buf = std.ArrayList(u8).init(self.allocator);
+    var write_buf: std.ArrayList(u8) = .init(allocator);
 
     while (true) {
         _ = try network.waitForSocketEvent(&ss, null);
@@ -124,7 +120,7 @@ pub fn serve(self: *Self, dicts: []dict.Location) !void {
 
         for (arr.items, 0..) |socket, i| {
             if (ss.isReadyRead(socket)) {
-                self.handleMessage(socket, &buf, &write_buf) catch |err| switch (err) {
+                self.handleMessage(allocator, socket, &buf, &write_buf) catch |err| switch (err) {
                     error.Exit => {
                         return;
                     },
@@ -140,7 +136,7 @@ pub fn serve(self: *Self, dicts: []dict.Location) !void {
     }
 }
 
-fn handleMessage(self: *Self, socket: network.Socket, buf: []u8, output: *std.ArrayList(u8)) !void {
+fn handleMessage(self: *Self, allocator: std.mem.Allocator, socket: network.Socket, buf: []u8, output: *std.ArrayList(u8)) !void {
     output.clearAndFree();
 
     const read = try socket.receive(buf);
@@ -162,7 +158,7 @@ fn handleMessage(self: *Self, socket: network.Socket, buf: []u8, output: *std.Ar
         return;
     }
 
-    try self.handlers[cmd].handle(self.allocator, output, line[1..]);
+    try self.handlers[cmd].handle(allocator, output, line[1..]);
     try output.append('\n');
     _ = try socket.send(output.items);
 }

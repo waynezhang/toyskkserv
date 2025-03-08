@@ -45,7 +45,7 @@ pub fn serve(allocator: std.mem.Allocator) !void {
 
     const server = try allocator.create(Server);
     defer {
-        server.deinit();
+        server.deinit(allocator);
         allocator.destroy(server);
     }
     server.* = try Server.init(allocator, .{
@@ -54,7 +54,7 @@ pub fn serve(allocator: std.mem.Allocator) !void {
         .use_google = cfg.fallback_to_google,
     });
 
-    server.serve(cfg.dictionaries) catch |err| {
+    server.serve(allocator, cfg.dictionaries) catch |err| {
         log.err("Failed to start server due to {}", .{err});
     };
     log.info("Server exited", .{});
