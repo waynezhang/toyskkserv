@@ -31,6 +31,10 @@
             .url = "git+https://github.com/judofyr/parg#229fa709c1fc2e94490a736e17151cb85a328a81",
             .hash = "parg-0.0.0-AAAAAFdXAACz2idpC5mhW6vvLlbXTUaD6watDCrDXviD",
         },
+        .jdz_allocator = .{
+            .url = "git+https://github.com/kython28/jdz_allocator#b8034dc0bcc6197064910a9982be68ffea261360",
+            .hash = "jdz_allocator-0.1.1-MT50pr1OAgCRgixFMufnta-ZTRDaX-mpowH-q2VwyXfk",
+        },
     },
     .paths = .{
         "build.zig",

@@ -1,19 +1,15 @@
 const std = @import("std");
 const builtin = @import("builtin");
+const jdz_allocator = @import("jdz_allocator");
+const pargs = @import("parg");
 const log = @import("zutils").log;
 const version = @import("version.zig");
 const cmd = @import("cmd/cmd.zig");
-const pargs = @import("parg");
 
 pub fn main() !void {
-    var debug_allocator: std.heap.DebugAllocator(.{}) = .init;
-    const alloc, const is_debug = switch (builtin.mode) {
-        .Debug, .ReleaseSafe => .{ debug_allocator.allocator(), true },
-        .ReleaseFast, .ReleaseSmall => .{ std.heap.smp_allocator, false },
-    };
-    defer if (is_debug) {
-        _ = debug_allocator.deinit();
-    };
+    var jdz = jdz_allocator.JdzAllocator(.{}).init();
+    defer jdz.deinit();
+    const alloc = jdz.allocator();
 
     log.init();
 
