@@ -26,33 +26,37 @@ pub fn init(allocator: std.mem.Allocator, context: Context) !Self {
     const dict_mgr = try allocator.create(dict.Manager);
     dict_mgr.* = try dict.Manager.init(allocator);
 
-    var hdls = try allocator.alloc(req_handlers.Handler, if (builtin.mode == .Debug) 7 else 6);
-    hdls[0] = req_handlers.Handler{
-        .disconnect_handler = req_handlers.DisconnectHandler{},
-    };
-    hdls[1] = req_handlers.Handler{
-        .candidate_handler = req_handlers.CandidateHandler{
-            .dict_mgr = dict_mgr,
-            .use_google = context.use_google,
-        },
-    };
-    hdls[2] = req_handlers.Handler{
-        .raw_string_handler = req_handlers.RawStringHandler(128).init(version.FullDescription),
-    };
-    hdls[3] = req_handlers.Handler{
-        .raw_string_handler = req_handlers.RawStringHandler(128).init(context.listen_addr),
-    };
-    hdls[4] = req_handlers.Handler{
-        .completion_handler = req_handlers.CompletionHandler{ .dict_mgr = dict_mgr },
-    };
-    hdls[5] = req_handlers.Handler{
-        .custom_protocol_handler = req_handlers.CustomProtocolHandler{ .dict_mgr = dict_mgr },
-    };
-    if (builtin.mode == .Debug) {
-        hdls[6] = req_handlers.Handler{
-            .exit_handler = req_handlers.ExitHandler{},
+    const hdls = blk: {
+        var hdls = try allocator.alloc(req_handlers.Handler, if (builtin.mode == .Debug) 7 else 6);
+        hdls[0] = req_handlers.Handler{
+            .disconnect_handler = req_handlers.DisconnectHandler{},
         };
-    }
+        hdls[1] = req_handlers.Handler{
+            .candidate_handler = req_handlers.CandidateHandler{
+                .dict_mgr = dict_mgr,
+                .use_google = context.use_google,
+            },
+        };
+        hdls[2] = req_handlers.Handler{
+            .raw_string_handler = req_handlers.RawStringHandler(128).init(version.FullDescription),
+        };
+        hdls[3] = req_handlers.Handler{
+            .raw_string_handler = req_handlers.RawStringHandler(128).init(context.listen_addr),
+        };
+        hdls[4] = req_handlers.Handler{
+            .completion_handler = req_handlers.CompletionHandler{ .dict_mgr = dict_mgr },
+        };
+        hdls[5] = req_handlers.Handler{
+            .custom_protocol_handler = req_handlers.CustomProtocolHandler{ .dict_mgr = dict_mgr },
+        };
+        if (builtin.mode == .Debug) {
+            hdls[6] = req_handlers.Handler{
+                .exit_handler = req_handlers.ExitHandler{},
+            };
+        }
+
+        break :blk hdls;
+    };
 
     return .{
         .dict_mgr = dict_mgr,
