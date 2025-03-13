@@ -1,4 +1,8 @@
-## 1.0.0 (2025-03-13)
+## 1.0.0 (2025-03-14)
+
+### Fix
+
+- use smp_allocator in linux ([ca1ebdd](https://github.com/waynezhang/toyskkserv/commit/ca1ebdd90f2371cba2bffe1d40f9da1773bcdf4f))
 
 ### Refactor
 
