@@ -7,9 +7,11 @@ const version = @import("version.zig");
 const cmd = @import("cmd/cmd.zig");
 
 pub fn main() !void {
-    var jdz = jdz_allocator.JdzAllocator(.{}).init();
-    defer jdz.deinit();
-    const alloc = jdz.allocator();
+    const use_jdz = builtin.os.tag != .linux;
+    var jdz = if (use_jdz) jdz_allocator.JdzAllocator(.{}).init() else {};
+    defer if (use_jdz) jdz.deinit() else {};
+
+    const alloc = if (use_jdz) jdz.allocator() else std.heap.smp_allocator;
 
     log.init();
 
