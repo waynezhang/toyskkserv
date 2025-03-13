@@ -1,3 +1,12 @@
+## 1.0.0 (2025-03-13)
+
+### Refactor
+
+- deprecate zon_get_fields in favor of zig native zon parser ([057ff2a](https://github.com/waynezhang/toyskkserv/commit/057ff2aa2d641f3c75070ad2e0d5f3e6f5ae9cfd))
+- migrate back to jdz_allocator to reduce memory usage ([a15c8d1](https://github.com/waynezhang/toyskkserv/commit/a15c8d11c233d99270fd08d78557f11017e43cba))
+- minor change ([1b83ca0](https://github.com/waynezhang/toyskkserv/commit/1b83ca0ac6d4cc9b9c62431ab8cab9a7504162d9))
+
+
 ## 0.0.9 (2025-03-09)
 
 ### New feature
