@@ -7,8 +7,8 @@ const require = @import("protest").require;
 
 const Self = @This();
 
-url: []const u8,
-files: []const []const u8,
+url: []const u8 = &.{},
+files: []const []const u8 = &.{},
 
 pub fn fileList(alloc: std.mem.Allocator, locations: []const Self, base_path: []const u8) ![]const []const u8 {
     var arr = std.ArrayList([]const u8).init(alloc);

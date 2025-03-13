@@ -218,10 +218,7 @@ pub const CustomProtocolHandler = struct {
 
     fn reload(self: CustomProtocolHandler, alloc: std.mem.Allocator) !void {
         const cfg = try config.loadConfig(alloc);
-        defer {
-            cfg.deinit(alloc);
-            alloc.destroy(cfg);
-        }
+        defer cfg.deinit(alloc);
 
         try self.dict_mgr.reloadLocations(cfg.dictionaries, cfg.dictionary_directory);
     }

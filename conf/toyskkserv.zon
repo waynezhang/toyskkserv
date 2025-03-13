@@ -24,7 +24,18 @@
         .{ .url = "https://skk-dev.github.io/dict/SKK-JISYO.mazegaki.gz" }, // 交ぜ書き
         // # 編纂
         .{ .url = "https://skk-dev.github.io/dict/SKK-JISYO.wrong.annotated.gz" }, // 間違えて含まれていたエントリ
-        .{ .url = "https://skk-dev.github.io/dict/SKK-JISYO.edict.tar.gz", .files = "SKK-JISYO.edict" }, // abbrev
-        .{ .url = "https://skk-dev.github.io/dict/zipcode.tar.gz", .files = "zipcode/SKK-JISYO.zipcode, zipcode/SKK-JISYO.office.zipcode" },
+        .{
+            .url = "https://skk-dev.github.io/dict/SKK-JISYO.edict.tar.gz",
+            .files = .{
+                "SKK-JISYO.edict",
+            },
+        }, // abbrev
+        .{
+            .url = "https://skk-dev.github.io/dict/zipcode.tar.gz",
+            .files = .{
+                "zipcode/SKK-JISYO.zipcode",
+                "zipcode/SKK-JISYO.office.zipcode",
+            },
+        },
     },
 }

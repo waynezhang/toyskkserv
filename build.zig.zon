@@ -11,10 +11,6 @@
             .url = "git+https://github.com/waynezhang/protest#b194504ba4b130f3f636c59b5cb53f39256b231a",
             .hash = "protest-0.1.0-PvViiK27AAAf7RwKNwRPsrHtjsTUkk-QxX2UD9Sj7njB",
         },
-        .zon_get_fields = .{
-            .url = "git+https://github.com/Durobot/zon_get_fields#47d458f0d9f20b37b6c21eb7a7ee061b8787dfa4",
-            .hash = "zon_get_fields-0.1.0-AAAAAC4dAgDM188LQBAgQ1CVcVf1dOe-rva9y1Irt4zS",
-        },
         .network = .{
             .url = "git+https://github.com/ikskuh/zig-network#c76240d2240711a3dcbf1c0fb461d5d1f18be79a",
             .hash = "network-0.1.0-AAAAAOwlAQAQ6zKPUrsibdpGisxld9ftUKGdMvcCSpaj",

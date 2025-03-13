@@ -5,7 +5,6 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
     const name = "toyskkserv";
     const deps = &[_]Dep{
-        .{ .name = "zon_get_fields" },
         .{ .name = "network" },
         .{ .name = "temp" },
         .{ .name = "zutils" },

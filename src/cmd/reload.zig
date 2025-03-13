@@ -8,10 +8,7 @@ pub fn reload(alloc: std.mem.Allocator) !void {
         log.err("Failed to load config file due to {}", .{err});
         return;
     };
-    defer {
-        cfg.deinit(alloc);
-        alloc.destroy(cfg);
-    }
+    defer cfg.deinit(alloc);
 
     try zutils.net.sendTCPMessage(cfg.listen_addr, "5reload");
 }

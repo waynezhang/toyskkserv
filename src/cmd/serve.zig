@@ -20,10 +20,8 @@ pub fn serve(allocator: std.mem.Allocator) !void {
             return;
         },
     };
-    defer {
-        cfg.deinit(allocator);
-        allocator.destroy(cfg);
-    }
+    defer cfg.deinit(allocator);
+
     const fmt =
         \\Config loaded:
         \\    Dictionary directory: {s}

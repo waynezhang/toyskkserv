@@ -8,10 +8,7 @@ pub fn update(alloc: std.mem.Allocator) !void {
         log.err("Failed to load config file due to {}", .{err});
         return;
     };
-    defer {
-        cfg.deinit(alloc);
-        alloc.destroy(cfg);
-    }
+    defer cfg.deinit(alloc);
 
     log.info("Start updating at {s}", .{cfg.dictionary_directory});
     dict.Location.downloadDicts(

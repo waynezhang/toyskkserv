@@ -5,10 +5,6 @@ const version = @import("version.zig");
 const cmd = @import("cmd/cmd.zig");
 const pargs = @import("parg");
 
-pub const std_options: std.Options = .{
-    .log_level = .err,
-};
-
 pub fn main() !void {
     var debug_allocator: std.heap.DebugAllocator(.{}) = .init;
     const alloc, const is_debug = switch (builtin.mode) {
