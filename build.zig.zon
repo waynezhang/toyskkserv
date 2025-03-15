@@ -28,8 +28,8 @@
             .hash = "zutils-0.0.1-jNUB2ghVAADkJ9KmPyz5TdUYQdWpFJksgGUCYy02yQIj",
         },
         .parg = .{
-            .url = "git+https://github.com/judofyr/parg#229fa709c1fc2e94490a736e17151cb85a328a81",
-            .hash = "parg-0.0.0-AAAAAFdXAACz2idpC5mhW6vvLlbXTUaD6watDCrDXviD",
+            .url = "git+https://github.com/judofyr/parg#f1fa9b9477abd21c2b775d5a51e42d149d908f57",
+            .hash = "parg-0.0.0-dOPWZH1XAAAveeTyz6L_X4RlfPwFctMHcdjPtvMZz4eY",
         },
         .jdz_allocator = .{
             .url = "git+https://github.com/kython28/jdz_allocator#b8034dc0bcc6197064910a9982be68ffea261360",
