@@ -110,7 +110,13 @@ toyskkserv returns `/ここでは/個々では/此処では/ココでは/ココ�
 ```
 .dictionaries = .{
     .{ .url = "https://skk-dev.github.io/dict/SKK-JISYO.L.gz" }, // 基本辞書
-    .{ .url = "https://skk-dev.github.io/dict/zipcode.tar.gz", .files = "zipcode/SKK-JISYO.zipcode, zipcode/SKK-JISYO.office.zipcode" },
+    .{
+       .url = "https://skk-dev.github.io/dict/zipcode.tar.gz",
+       .files = .{
+         "zipcode/SKK-JISYO.zipcode",
+         "zipcode/SKK-JISYO.office.zipcode",
+       },
+    },
     .{ .url = "~/skk-dict/some_dict_file" },
 },
 ```
