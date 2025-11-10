@@ -133,7 +133,7 @@ pub const CompletionHandler = struct {
     }
 
     fn handle(self: CompletionHandler, alloc: std.mem.Allocator, buffer: *std.ArrayList(u8), line: []const u8) !void {
-        const cdd = try self.dict_mgr.findCompletion(alloc, line);
+        const cdd = try self.dict_mgr.findCompletion(alloc, line, 100);
         defer alloc.free(cdd);
 
         try resp.generateResponse(buffer, line, cdd);

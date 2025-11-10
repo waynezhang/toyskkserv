@@ -129,7 +129,7 @@ pub fn serve(self: *Self, allocator: std.mem.Allocator, dicts: []dict.Location) 
                         return;
                     },
                     else => {
-                        log.info("Connection disconnected", .{});
+                        log.info("Connection disconnected due to {}", .{err});
                         socket.close();
                         ss.remove(socket);
                         _ = arr.swapRemove(i);

@@ -54,13 +54,15 @@ pub fn findCandidate(self: *const Self, alloc: std.mem.Allocator, key: []const u
     return "";
 }
 
-pub fn findCompletion(self: *const Self, alloc: std.mem.Allocator, key: []const u8) ![]const u8 {
+pub fn findCompletion(self: *const Self, alloc: std.mem.Allocator, key: []const u8, limit: u16) ![]const u8 {
     if (key.len == 0) {
         return alloc.dupe(u8, key);
     }
     const Ctx = struct {
         pivo_key: []const u8,
         arr: *std.ArrayList(u8),
+        count: u16,
+        limit: u16,
     };
     const cb = struct {
         fn iter(a: *Entry, context: ?*Ctx) bool {
@@ -71,6 +73,10 @@ pub fn findCompletion(self: *const Self, alloc: std.mem.Allocator, key: []const 
                 context.?.arr.appendSlice(a.key()) catch {
                     return false;
                 };
+                context.?.count += 1;
+                if (context.?.count > context.?.limit) {
+                    return false;
+                }
                 return true;
             }
             return false;
@@ -83,6 +89,8 @@ pub fn findCompletion(self: *const Self, alloc: std.mem.Allocator, key: []const 
     var ctx: Ctx = .{
         .pivo_key = key,
         .arr = &arr,
+        .count = 0,
+        .limit = limit,
     };
 
     const pivot = try Entry.init(alloc, key, "");
