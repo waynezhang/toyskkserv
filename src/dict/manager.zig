@@ -131,12 +131,12 @@ test "DictManager" {
     try require.equal("", mgr.findCandidate(alloc, "1000000"));
 
     {
-        const comp = try mgr.findCompletion(alloc, "");
+        const comp = try mgr.findCompletion(alloc, "", 100);
         defer alloc.free(comp);
         try require.equal("", comp);
     }
     {
-        const comp = try mgr.findCompletion(alloc, "1");
+        const comp = try mgr.findCompletion(alloc, "1", 100);
         defer alloc.free(comp);
         try require.equal("/1024/1seg/", comp);
     }
