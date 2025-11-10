@@ -1,3 +1,10 @@
+## v1.0.1 (2025-11-10)
+
+### Fix
+
+- limit the number of completion to avoid connection disconnect w/ macSKK (not sure why though) ([bf465bd](https://github.com/waynezhang/toyskkserv/commit/bf465bd43a6020745ef57c683d708a1053cd929a))
+
+
 ## 1.0.0 (2025-03-14)
 
 ### Fix
