@@ -1,8 +1,6 @@
 const std = @import("std");
 const utils = @import("../utils/utils.zig");
 
-const require = @import("protest").require;
-
 const Entry = @This();
 
 // key_len    cdd_len    key    cdd
@@ -81,43 +79,43 @@ test "entry" {
         var ent = try Entry.init(alloc, "", "");
         defer ent.deinit(alloc);
 
-        try require.equal(ent.keyLen(), @as(usize, 0));
-        try require.equal(ent.key(), "");
+        try std.testing.expectEqual(ent.keyLen(), @as(usize, 0));
+        try std.testing.expectEqualStrings(ent.key(), "");
 
-        try require.equal(ent.candidateLen(), @as(usize, 0));
-        try require.equal(ent.candidate(), "");
+        try std.testing.expectEqual(ent.candidateLen(), @as(usize, 0));
+        try std.testing.expectEqualStrings(ent.candidate(), "");
     }
 
     {
         var ent = try Entry.init(alloc, "test_key", "");
         defer ent.deinit(alloc);
 
-        try require.equal(ent.keyLen(), @as(usize, 8));
-        try require.equal(ent.key(), "test_key");
+        try std.testing.expectEqual(ent.keyLen(), @as(usize, 8));
+        try std.testing.expectEqualStrings(ent.key(), "test_key");
 
-        try require.equal(ent.candidateLen(), @as(usize, 0));
-        try require.equal(ent.candidate(), "");
+        try std.testing.expectEqual(ent.candidateLen(), @as(usize, 0));
+        try std.testing.expectEqualStrings(ent.candidate(), "");
     }
 
     {
         var ent = try Entry.init(alloc, "", "test_candidate");
         defer ent.deinit(alloc);
 
-        try require.equal(ent.keyLen(), @as(usize, 0));
-        try require.equal(ent.key(), "");
+        try std.testing.expectEqual(ent.keyLen(), @as(usize, 0));
+        try std.testing.expectEqualStrings(ent.key(), "");
 
-        try require.equal(ent.candidateLen(), @as(usize, 14));
-        try require.equal(ent.candidate(), "test_candidate");
+        try std.testing.expectEqual(ent.candidateLen(), @as(usize, 14));
+        try std.testing.expectEqualStrings(ent.candidate(), "test_candidate");
     }
     {
         var ent = try Entry.init(alloc, "test_key", "test_candidate");
         defer ent.deinit(alloc);
 
-        try require.equal(ent.keyLen(), @as(usize, 8));
-        try require.equal(ent.key(), "test_key");
+        try std.testing.expectEqual(ent.keyLen(), @as(usize, 8));
+        try std.testing.expectEqualStrings(ent.key(), "test_key");
 
-        try require.equal(ent.candidateLen(), @as(usize, 14));
-        try require.equal(ent.candidate(), "test_candidate");
+        try std.testing.expectEqual(ent.candidateLen(), @as(usize, 14));
+        try std.testing.expectEqualStrings(ent.candidate(), "test_candidate");
     }
 }
 
@@ -130,14 +128,14 @@ test "entry compare" {
 
     {
         const ret = a.compare(&b, null);
-        try require.isTrue(ret < 0);
+        try std.testing.expect(ret < 0);
     }
     {
         const ret = b.compare(&a, null);
-        try require.isTrue(ret > 0);
+        try std.testing.expect(ret > 0);
     }
     {
         const ret = a.compare(&a, null);
-        try require.isTrue(ret == 0);
+        try std.testing.expect(ret == 0);
     }
 }

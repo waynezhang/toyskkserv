@@ -2,7 +2,6 @@ const std = @import("std");
 const log = @import("zutils").log;
 const Server = @import("../server/server.zig").Server;
 const config = @import("../config.zig");
-const jdz_allocator = @import("jdz_allocator");
 const dict = @import("../dict/dict.zig");
 
 pub fn serve(allocator: std.mem.Allocator) !void {
@@ -12,7 +11,10 @@ pub fn serve(allocator: std.mem.Allocator) !void {
     };
     var cfg = config.loadConfig(allocator) catch |err| switch (err) {
         error.NoConfigFound => {
-            log.err("No config file found in following paths.\n{s}", .{config_files});
+            log.err("No config file found in following paths.\n", .{});
+            for (config_files) |p| {
+                log.err("{s}\n", .{p});
+            }
             return;
         },
         else => {

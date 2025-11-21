@@ -1,8 +1,6 @@
 const std = @import("std");
 const euc_jp = @import("euc_jis_2004_zig");
 
-const require = @import("protest").require;
-
 pub const Encoding = enum {
     euc_jp,
     utf8,
@@ -16,24 +14,19 @@ pub const Pair = struct {
 
 pub const Iterator = IteratorLine(4096);
 
-fn IteratorLine(comptime size: usize) type {
+fn IteratorLine(comptime _: usize) type {
     return struct {
         encoding: Encoding,
 
         file: std.fs.File,
-        buffered: std.io.BufferedReader(size, std.fs.File.Reader),
-        line_buf: []u8,
+        reader: std.fs.File.Reader,
 
         pub fn next(self: *Iterator, convert_buf: []u8) !?Pair {
             while (true) {
-                const line = self.buffered.reader().readUntilDelimiter(self.line_buf, '\n') catch |err| switch (err) {
-                    error.EndOfStream => {
-                        return null;
-                    },
-                    else => {
-                        return err;
-                    },
-                };
+                const line = try self.reader.interface.takeDelimiter('\n') orelse &[_]u8{};
+                if (line.len == 0) {
+                    return null;
+                }
                 if (self.encoding == .undecided) {
                     self.encoding = detectEncoding(line);
                 }
@@ -65,14 +58,12 @@ fn IteratorLine(comptime size: usize) type {
 pub fn open(filepath: []const u8, line_buffer: []u8) !Iterator {
     const encoding: Encoding = if (std.mem.endsWith(u8, filepath, ".utf8")) .utf8 else .undecided;
 
-    const file = try std.fs.cwd().openFile(filepath, .{});
-    const buf_reader = std.io.bufferedReader(file.reader());
+    const file = try std.fs.cwd().openFile(filepath, .{ .mode = .read_only });
 
     return .{
         .encoding = encoding,
         .file = file,
-        .buffered = buf_reader,
-        .line_buf = line_buffer,
+        .reader = file.reader(line_buffer),
     };
 }
 
@@ -101,13 +92,13 @@ test "skk utf-8 with header" {
             try alloc.dupe(u8, ent.candidate),
         );
     }
-    try require.equal(Encoding.utf8, ite.encoding);
+    try std.testing.expectEqual(Encoding.utf8, ite.encoding);
 
-    try require.equal("/キロ/", map.get("1024") orelse "");
-    try require.equal("/ワンセグ/", map.get("1seg") orelse "");
-    try require.equal("/５０/五〇/五十/", map.get("50") orelse "");
-    try require.equal("/ＡＢＣ/", map.get("ABC") orelse "");
-    try require.equal("/台湾/", map.get("taiwan") orelse "");
+    try std.testing.expectEqualStrings("/キロ/", map.get("1024") orelse "");
+    try std.testing.expectEqualStrings("/ワンセグ/", map.get("1seg") orelse "");
+    try std.testing.expectEqualStrings("/５０/五〇/五十/", map.get("50") orelse "");
+    try std.testing.expectEqualStrings("/ＡＢＣ/", map.get("ABC") orelse "");
+    try std.testing.expectEqualStrings("/台湾/", map.get("taiwan") orelse "");
 }
 
 test "skk utf-8 no header" {
@@ -134,13 +125,13 @@ test "skk utf-8 no header" {
             try alloc.dupe(u8, ent.candidate),
         );
     }
-    try require.equal(Encoding.utf8, ite.encoding);
+    try std.testing.expectEqual(Encoding.utf8, ite.encoding);
 
-    try require.equal("/キロ/", map.get("1024") orelse "");
-    try require.equal("/ワンセグ/", map.get("1seg") orelse "");
-    try require.equal("/５０/五〇/五十/", map.get("50") orelse "");
-    try require.equal("/ＡＢＣ/", map.get("ABC") orelse "");
-    try require.equal("/台湾/", map.get("taiwan") orelse "");
+    try std.testing.expectEqualStrings("/キロ/", map.get("1024") orelse "");
+    try std.testing.expectEqualStrings("/ワンセグ/", map.get("1seg") orelse "");
+    try std.testing.expectEqualStrings("/５０/五〇/五十/", map.get("50") orelse "");
+    try std.testing.expectEqualStrings("/ＡＢＣ/", map.get("ABC") orelse "");
+    try std.testing.expectEqualStrings("/台湾/", map.get("taiwan") orelse "");
 }
 
 test "skk euc-jp no header" {
@@ -168,11 +159,11 @@ test "skk euc-jp no header" {
             try alloc.dupe(u8, ent.candidate),
         );
     }
-    try require.equal(Encoding.euc_jp, ite.encoding);
+    try std.testing.expectEqual(Encoding.euc_jp, ite.encoding);
 
-    try require.equal("/̀;accent grave (diacritic)/", map.get("`") orelse "");
-    try require.equal("/á/ά;発音記号/ʌ́;発音記号/ə́;発音記号/", map.get("a'") orelse "");
-    try require.equal("/æ/", map.get("ae") orelse "");
+    try std.testing.expectEqualStrings("/̀;accent grave (diacritic)/", map.get("`") orelse "");
+    try std.testing.expectEqualStrings("/á/ά;発音記号/ʌ́;発音記号/ə́;発音記号/", map.get("a'") orelse "");
+    try std.testing.expectEqualStrings("/æ/", map.get("ae") orelse "");
 }
 
 fn detectEncoding(line: []const u8) Encoding {
@@ -192,17 +183,17 @@ fn detectEncoding(line: []const u8) Encoding {
 }
 
 test "detectEncoding" {
-    try require.equal(Encoding.utf8, detectEncoding(";; coding: utf-8"));
-    try require.equal(Encoding.utf8, detectEncoding(";; coding: utf-8  "));
-    try require.equal(Encoding.utf8, detectEncoding(";; coding: utf-8 -*- mode: listp -*-"));
+    try std.testing.expectEqual(Encoding.utf8, detectEncoding(";; coding: utf-8"));
+    try std.testing.expectEqual(Encoding.utf8, detectEncoding(";; coding: utf-8  "));
+    try std.testing.expectEqual(Encoding.utf8, detectEncoding(";; coding: utf-8 -*- mode: listp -*-"));
 
-    try require.equal(Encoding.euc_jp, detectEncoding(";; coding: euc "));
-    try require.equal(Encoding.euc_jp, detectEncoding("coding: utf-8"));
-    try require.equal(Encoding.euc_jp, detectEncoding(";;"));
-    try require.equal(Encoding.euc_jp, detectEncoding(""));
+    try std.testing.expectEqual(Encoding.euc_jp, detectEncoding(";; coding: euc "));
+    try std.testing.expectEqual(Encoding.euc_jp, detectEncoding("coding: utf-8"));
+    try std.testing.expectEqual(Encoding.euc_jp, detectEncoding(";;"));
+    try std.testing.expectEqual(Encoding.euc_jp, detectEncoding(""));
 
-    try require.equal(Encoding.euc_jp, detectEncoding(";; codg: utf-8"));
-    try require.equal(Encoding.utf8, detectEncoding(";;; coding: utf-8 coding: euc_jp"));
+    try std.testing.expectEqual(Encoding.euc_jp, detectEncoding(";; codg: utf-8"));
+    try std.testing.expectEqual(Encoding.utf8, detectEncoding(";;; coding: utf-8 coding: euc_jp"));
 }
 
 fn parsePair(input: []const u8) ?Pair {
@@ -229,28 +220,28 @@ fn parsePair(input: []const u8) ?Pair {
 test "parsePair" {
     {
         const result = parsePair("hello world").?;
-        try require.equal("hello", result.key);
-        try require.equal("world", result.candidate);
+        try std.testing.expectEqualStrings("hello", result.key);
+        try std.testing.expectEqualStrings("world", result.candidate);
     }
     {
         const result = parsePair("hello   world  test").?;
-        try require.equal("hello", result.key);
-        try require.equal("world  test", result.candidate);
+        try std.testing.expectEqualStrings("hello", result.key);
+        try std.testing.expectEqualStrings("world  test", result.candidate);
     }
     {
         const result = parsePair("");
-        try require.isNull(result);
+        try std.testing.expect(result == null);
     }
     {
         const result = parsePair("helloworld");
-        try require.isNull(result);
+        try std.testing.expect(result == null);
     }
     {
         const result = parsePair(" ");
-        try require.isNull(result);
+        try std.testing.expect(result == null);
     }
     {
         const result = parsePair(";; some line here");
-        try require.isNull(result);
+        try std.testing.expect(result == null);
     }
 }

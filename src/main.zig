@@ -1,17 +1,12 @@
 const std = @import("std");
 const builtin = @import("builtin");
-const jdz_allocator = @import("jdz_allocator");
 const pargs = @import("parg");
 const log = @import("zutils").log;
 const version = @import("version.zig");
 const cmd = @import("cmd/cmd.zig");
 
 pub fn main() !void {
-    const use_jdz = builtin.os.tag != .linux;
-    var jdz = if (use_jdz) jdz_allocator.JdzAllocator(.{}).init() else {};
-    defer if (use_jdz) jdz.deinit() else {};
-
-    const alloc = if (use_jdz) jdz.allocator() else std.heap.smp_allocator;
+    const alloc = std.heap.smp_allocator;
 
     log.init();
 

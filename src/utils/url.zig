@@ -1,6 +1,5 @@
 const std = @import("std");
 const fs = @import("fs.zig");
-const require = @import("protest").require;
 
 pub fn isHttpUrl(url: []const u8) bool {
     return std.mem.startsWith(u8, url, "http://") or
@@ -8,10 +7,10 @@ pub fn isHttpUrl(url: []const u8) bool {
 }
 
 test "isHttpUrl" {
-    try require.isTrue(isHttpUrl("http://google.com"));
-    try require.isTrue(isHttpUrl("https://google.com"));
-    try require.isFalse(isHttpUrl("/usr/bin"));
-    try require.isFalse(isHttpUrl("~/.config"));
+    try std.testing.expect(isHttpUrl("http://google.com"));
+    try std.testing.expect(isHttpUrl("https://google.com"));
+    try std.testing.expect(!isHttpUrl("/usr/bin"));
+    try std.testing.expect(!isHttpUrl("~/.config"));
 }
 
 pub fn isGzip(url: []const u8) bool {
@@ -19,9 +18,9 @@ pub fn isGzip(url: []const u8) bool {
 }
 
 test "isGzip" {
-    try require.isTrue(isGzip("/abc/def/a.gz"));
-    try require.isFalse(isGzip("/abc/def/a.tar.gz"));
-    try require.isFalse(isGzip("/abc/def/a.txt"));
+    try std.testing.expect(isGzip("/abc/def/a.gz"));
+    try std.testing.expect(!isGzip("/abc/def/a.tar.gz"));
+    try std.testing.expect(!isGzip("/abc/def/a.txt"));
 }
 
 pub fn isTar(url: []const u8) bool {
@@ -29,7 +28,7 @@ pub fn isTar(url: []const u8) bool {
 }
 
 test "isTar" {
-    try require.isTrue(isTar("/abc/def/a.tar.gz"));
-    try require.isFalse(isTar("/abc/def/a.gz"));
-    try require.isFalse(isTar("/abc/def/a.txt"));
+    try std.testing.expect(isTar("/abc/def/a.tar.gz"));
+    try std.testing.expect(!isTar("/abc/def/a.gz"));
+    try std.testing.expect(!isTar("/abc/def/a.txt"));
 }

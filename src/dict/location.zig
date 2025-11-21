@@ -3,32 +3,30 @@ const utils = @import("../utils/utils.zig");
 const zutils = @import("zutils");
 const log = zutils.log;
 
-const require = @import("protest").require;
-
 const Self = @This();
 
 url: []const u8 = &.{},
 files: []const []const u8 = &.{},
 
 pub fn fileList(alloc: std.mem.Allocator, locations: []const Self, base_path: []const u8) ![]const []const u8 {
-    var arr = std.ArrayList([]const u8).init(alloc);
-    defer arr.deinit();
+    var arr = try std.ArrayList([]const u8).initCapacity(alloc, 0);
+    defer arr.deinit(alloc);
 
     for (locations) |loc| {
         if (utils.url.isGzip(loc.url)) {
-            try arr.append(try zutils.fs.toAbsolutePathAlloc(alloc, std.mem.trimRight(u8, std.fs.path.basename(loc.url), ".gz"), base_path));
+            try arr.append(alloc, try zutils.fs.toAbsolutePathAlloc(alloc, std.mem.trimRight(u8, std.fs.path.basename(loc.url), ".gz"), base_path));
         } else if (utils.url.isTar(loc.url)) {
             for (loc.files) |f| {
-                try arr.append(try zutils.fs.toAbsolutePathAlloc(alloc, std.fs.path.basename(f), base_path));
+                try arr.append(alloc, try zutils.fs.toAbsolutePathAlloc(alloc, std.fs.path.basename(f), base_path));
             }
         } else if (utils.url.isHttpUrl(loc.url)) {
-            try arr.append(try zutils.fs.toAbsolutePathAlloc(alloc, std.fs.path.basename(loc.url), base_path));
+            try arr.append(alloc, try zutils.fs.toAbsolutePathAlloc(alloc, std.fs.path.basename(loc.url), base_path));
         } else {
-            try arr.append(try zutils.fs.toAbsolutePathAlloc(alloc, loc.url, base_path));
+            try arr.append(alloc, try zutils.fs.toAbsolutePathAlloc(alloc, loc.url, base_path));
         }
     }
 
-    return try arr.toOwnedSlice();
+    return try arr.toOwnedSlice(alloc);
 }
 
 test "fileList" {
@@ -59,40 +57,40 @@ test "fileList" {
     {
         const p = try std.fs.path.join(alloc, &[_][]const u8{ cwd, "test01.txt" });
         defer alloc.free(p);
-        try require.equal(p, translated[0]);
+        try std.testing.expectEqualStrings(p, translated[0]);
     }
     {
         const p = try std.fs.path.join(alloc, &[_][]const u8{ cwd, "test02.txt" });
         defer alloc.free(p);
-        try require.equal(p, translated[1]);
+        try std.testing.expectEqualStrings(p, translated[1]);
     }
     {
         const p = try std.fs.path.join(alloc, &[_][]const u8{ cwd, "test03.txt" });
         defer alloc.free(p);
-        try require.equal(p, translated[2]);
+        try std.testing.expectEqualStrings(p, translated[2]);
     }
     {
         const p = try std.fs.path.join(alloc, &[_][]const u8{ home, "test04.txt" });
         defer alloc.free(p);
-        try require.equal(p, translated[3]);
+        try std.testing.expectEqualStrings(p, translated[3]);
     }
     {
-        try require.equal("/test05.txt", translated[4]);
+        try std.testing.expectEqualStrings("/test05.txt", translated[4]);
     }
     {
         const p = try std.fs.path.join(alloc, &[_][]const u8{ cwd, "test06.txt" });
         defer alloc.free(p);
-        try require.equal(p, translated[5]);
+        try std.testing.expectEqualStrings(p, translated[5]);
     }
     {
         const p = try std.fs.path.join(alloc, &[_][]const u8{ cwd, "test07-01.txt" });
         defer alloc.free(p);
-        try require.equal(p, translated[6]);
+        try std.testing.expectEqualStrings(p, translated[6]);
     }
     {
         const p = try std.fs.path.join(alloc, &[_][]const u8{ cwd, "test07-02.txt" });
         defer alloc.free(p);
-        try require.equal(p, translated[7]);
+        try std.testing.expectEqualStrings(p, translated[7]);
     }
 }
 
@@ -147,7 +145,7 @@ test "downloadDicts" {
         const p = try std.fs.path.join(alloc, &[_][]const u8{ path, file });
         defer alloc.free(p);
 
-        try require.isTrue(zutils.fs.isExisting(p));
+        try std.testing.expect(zutils.fs.isExisting(p));
     }
 }
 
@@ -227,16 +225,16 @@ const DownloadSM = struct {
             .WaitForExtract => {
                 defer self.state = .WaitForUpdate;
 
-                var file_infos = std.ArrayList(*FileInfo).init(alloc);
-                defer file_infos.deinit();
+                var file_infos = try std.ArrayList(*FileInfo).initCapacity(alloc, 0);
+                defer file_infos.deinit(alloc);
 
                 if (!utils.url.isGzip(self.loc.url) and !utils.url.isTar(self.loc.url)) {
                     const info = try alloc.create(FileInfo);
                     info.path = try alloc.dupe(u8, self.tmp_file.path);
                     info.filename = try alloc.dupe(u8, std.fs.path.basename(self.loc.url));
 
-                    try file_infos.append(info);
-                    self.file_infos = try file_infos.toOwnedSlice();
+                    try file_infos.append(alloc, info);
+                    self.file_infos = try file_infos.toOwnedSlice(alloc);
 
                     self.state = .WaitForUpdate;
                     return;
@@ -252,8 +250,8 @@ const DownloadSM = struct {
                     info.path = decompressed_path;
                     info.filename = try alloc.dupe(u8, std.mem.trimRight(u8, std.fs.path.basename(self.loc.url), ".gz"));
 
-                    try file_infos.append(info);
-                    self.file_infos = try file_infos.toOwnedSlice();
+                    try file_infos.append(alloc, info);
+                    self.file_infos = try file_infos.toOwnedSlice(alloc);
 
                     self.state = .WaitForUpdate;
                     return;
@@ -269,9 +267,9 @@ const DownloadSM = struct {
                     info.path = decompressed_path;
                     info.filename = try alloc.dupe(u8, std.fs.path.basename(f));
 
-                    try file_infos.append(info);
+                    try file_infos.append(alloc, info);
                 }
-                self.file_infos = try file_infos.toOwnedSlice();
+                self.file_infos = try file_infos.toOwnedSlice(alloc);
             },
             .WaitForUpdate => {
                 defer self.state = .WaitForNotification;
@@ -353,34 +351,34 @@ test "shouldSkip" {
     const alloc = std.testing.allocator;
     {
         const loc: Self = .{ .url = "/tmp/filepath", .files = &.{} };
-        try require.isTrue(try shouldSkip(alloc, loc, ".", true));
-        try require.isTrue(try shouldSkip(alloc, loc, ".", false));
+        try std.testing.expect(try shouldSkip(alloc, loc, ".", true));
+        try std.testing.expect(try shouldSkip(alloc, loc, ".", false));
     }
     {
         const loc: Self = .{ .url = "https://abc.com/path/testdata/jisyo.utf8", .files = &.{} };
-        try require.isTrue(try shouldSkip(alloc, loc, "testdata", false));
-        try require.isFalse(try shouldSkip(alloc, loc, "testdata", true));
+        try std.testing.expect(try shouldSkip(alloc, loc, "testdata", false));
+        try std.testing.expect(!try shouldSkip(alloc, loc, "testdata", true));
     }
     {
         const loc: Self = .{ .url = "https://abc.com/path/testdata/jisyo-notexisting.utf8", .files = &.{} };
-        try require.isFalse(try shouldSkip(alloc, loc, "testdata", false));
+        try std.testing.expect(!try shouldSkip(alloc, loc, "testdata", false));
     }
     {
         const loc: Self = .{ .url = "https://abc.com/path/testdata/jisyo.utf8.gz", .files = &.{} };
-        try require.isTrue(try shouldSkip(alloc, loc, "testdata", false));
-        try require.isFalse(try shouldSkip(alloc, loc, "testdata", true));
+        try std.testing.expect(try shouldSkip(alloc, loc, "testdata", false));
+        try std.testing.expect(!try shouldSkip(alloc, loc, "testdata", true));
     }
     {
         const loc: Self = .{ .url = "https://abc.com/path/testdata/jisyo-notexisting.utf8.gz", .files = &.{} };
-        try require.isFalse(try shouldSkip(alloc, loc, "testdata", false));
+        try std.testing.expect(!try shouldSkip(alloc, loc, "testdata", false));
     }
     {
         const loc: Self = .{ .url = "https://abc.com/path/testdata/somefile.tar.gz", .files = &.{"jisyo.utf8"} };
-        try require.isTrue(try shouldSkip(alloc, loc, "testdata", false));
-        try require.isFalse(try shouldSkip(alloc, loc, "testdata", true));
+        try std.testing.expect(try shouldSkip(alloc, loc, "testdata", false));
+        try std.testing.expect(!try shouldSkip(alloc, loc, "testdata", true));
     }
     {
         const loc: Self = .{ .url = "https://abc.com/path/testdata/somefile.tar.gz", .files = &.{"jisyo.utf8,notexisting.utf8"} };
-        try require.isFalse(try shouldSkip(alloc, loc, "testdata", false));
+        try std.testing.expect(!try shouldSkip(alloc, loc, "testdata", false));
     }
 }

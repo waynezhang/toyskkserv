@@ -1,34 +1,33 @@
 const std = @import("std");
 const mem = std.mem;
-const require = @import("protest").require;
 
-pub fn generateResponse(buffer: *std.ArrayList(u8), req: []const u8, res: []const u8) !void {
+pub fn generateResponse(writer: *std.Io.Writer, req: []const u8, res: []const u8) !void {
     if (res.len > 0) {
         // 1/cdd1/cdd1/\n
-        try buffer.append('1');
-        try buffer.appendSlice(res);
+        try writer.writeByte('1');
+        _ = try writer.write(res);
         return;
     }
 
     // 4req \n
-    try buffer.append('4');
-    try buffer.appendSlice(req);
-    try buffer.append(' ');
+    try writer.writeByte('4');
+    _ = try writer.write(req);
+    try writer.writeByte(' ');
     return;
 }
 
 test "generateResponse with non-empty response" {
     const allocator = std.testing.allocator;
 
-    var buf = std.ArrayList(u8).init(allocator);
+    var buf = std.Io.Writer.Allocating.init(allocator);
     defer buf.deinit();
 
     const req = "test request";
     const res = "test response";
 
-    try generateResponse(&buf, req, res);
+    try generateResponse(&buf.writer, req, res);
 
-    try require.equal("1test response", buf.items);
+    try std.testing.expectEqualStrings("1test response", buf.written());
 }
 
 test "generateResponse with empty response" {
@@ -36,10 +35,10 @@ test "generateResponse with empty response" {
     const req = "test request";
     const res = "";
 
-    var buf = std.ArrayList(u8).init(allocator);
+    var buf = std.Io.Writer.Allocating.init(allocator);
     defer buf.deinit();
 
-    try generateResponse(&buf, req, res);
+    try generateResponse(&buf.writer, req, res);
 
-    try require.equal("4test request ", buf.items);
+    try std.testing.expectEqualStrings("4test request ", buf.written());
 }

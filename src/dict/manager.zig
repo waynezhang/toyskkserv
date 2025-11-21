@@ -4,7 +4,6 @@ const btree = @import("btree_zig");
 const Location = @import("location.zig");
 const skk = @import("../skk/skk.zig");
 const Entry = @import("entry.zig");
-const require = @import("protest").require;
 
 const Self = @This();
 
@@ -60,17 +59,17 @@ pub fn findCompletion(self: *const Self, alloc: std.mem.Allocator, key: []const 
     }
     const Ctx = struct {
         pivo_key: []const u8,
-        arr: *std.ArrayList(u8),
+        writer: *std.Io.Writer,
         count: u16,
         limit: u16,
     };
     const cb = struct {
         fn iter(a: *Entry, context: ?*Ctx) bool {
             if (std.mem.startsWith(u8, a.key(), context.?.pivo_key)) {
-                context.?.arr.append('/') catch {
+                context.?.writer.writeByte('/') catch {
                     return false;
                 };
-                context.?.arr.appendSlice(a.key()) catch {
+                _ = context.?.writer.write(a.key()) catch {
                     return false;
                 };
                 context.?.count += 1;
@@ -83,12 +82,12 @@ pub fn findCompletion(self: *const Self, alloc: std.mem.Allocator, key: []const 
         }
     };
 
-    var arr = std.ArrayList(u8).init(alloc);
-    defer arr.deinit();
+    var allocating = std.Io.Writer.Allocating.init(alloc);
+    defer allocating.deinit();
 
     var ctx: Ctx = .{
         .pivo_key = key,
-        .arr = &arr,
+        .writer = &allocating.writer,
         .count = 0,
         .limit = limit,
     };
@@ -97,11 +96,11 @@ pub fn findCompletion(self: *const Self, alloc: std.mem.Allocator, key: []const 
     defer pivot.deinit(alloc);
 
     _ = self.tree.ascend(Ctx, &ctx, &pivot, cb.iter);
-    if (arr.items.len > 0) {
-        arr.append('/') catch {};
+    if (ctx.count > 0) {
+        allocating.writer.writeByte('/') catch {};
     }
 
-    return try arr.toOwnedSlice();
+    return try allocating.toOwnedSlice();
 }
 
 test "DictManager" {
@@ -126,27 +125,27 @@ test "DictManager" {
     };
     try mgr.reloadLocations(locations, path);
 
-    try require.equal("", mgr.findCandidate(alloc, ""));
-    try require.equal("/キロ/", mgr.findCandidate(alloc, "1024"));
-    try require.equal("", mgr.findCandidate(alloc, "1000000"));
+    try std.testing.expectEqualStrings("", mgr.findCandidate(alloc, ""));
+    try std.testing.expectEqualStrings("/キロ/", mgr.findCandidate(alloc, "1024"));
+    try std.testing.expectEqualStrings("", mgr.findCandidate(alloc, "1000000"));
 
     {
         const comp = try mgr.findCompletion(alloc, "", 100);
         defer alloc.free(comp);
-        try require.equal("", comp);
+        try std.testing.expectEqualStrings("", comp);
     }
     {
         const comp = try mgr.findCompletion(alloc, "1", 100);
         defer alloc.free(comp);
-        try require.equal("/1024/1seg/", comp);
+        try std.testing.expectEqualStrings("/1024/1seg/", comp);
     }
 
     // reload
     try mgr.reloadLocations(&[_]Location{}, path);
-    try require.equal("", mgr.findCandidate(alloc, "1024"));
+    try std.testing.expectEqualStrings("", mgr.findCandidate(alloc, "1024"));
 
     try mgr.reloadLocations(locations, path);
-    try require.equal("/キロ/", mgr.findCandidate(alloc, "1024"));
+    try std.testing.expectEqualStrings("/キロ/", mgr.findCandidate(alloc, "1024"));
 }
 
 fn loadFiles(self: *const Self, filenames: []const []const u8) !void {
@@ -217,7 +216,7 @@ test "processLine" {
         defer found.deinit(alloc);
 
         const ret = tree.get(&found);
-        try require.equal("/abc/", ret.?.candidate());
+        try std.testing.expectEqualStrings("/abc/", ret.?.candidate());
     }
     {
         try processLine(alloc, &tree, "test2", "/123/");
@@ -226,7 +225,7 @@ test "processLine" {
         defer found.deinit(alloc);
 
         const ret = tree.get(&found);
-        try require.equal("/123/", ret.?.candidate());
+        try std.testing.expectEqualStrings("/123/", ret.?.candidate());
     }
     {
         try processLine(alloc, &tree, "test", "/def/");
@@ -235,7 +234,7 @@ test "processLine" {
         defer found.deinit(alloc);
 
         const ret = tree.get(&found);
-        try require.equal("/abc/def/", ret.?.candidate());
+        try std.testing.expectEqualStrings("/abc/def/", ret.?.candidate());
     }
 }
 

@@ -101,13 +101,13 @@ pub fn serve(self: *Self, allocator: std.mem.Allocator, dicts: []dict.Location) 
     };
     try ss.add(server_socket, socket_event);
 
-    var arr: std.ArrayList(network.Socket) = .init(allocator);
-    defer arr.deinit();
+    var arr: std.ArrayList(network.Socket) = try .initCapacity(allocator, 5);
+    defer arr.deinit(allocator);
 
     log.info("Listening at {s}", .{self.listen_addr});
 
     var buf = [_]u8{0} ** 4096;
-    var write_buf: std.ArrayList(u8) = .init(allocator);
+    var write_allocating = std.Io.Writer.Allocating.init(allocator);
 
     while (true) {
         _ = try network.waitForSocketEvent(&ss, null);
@@ -116,15 +116,15 @@ pub fn serve(self: *Self, allocator: std.mem.Allocator, dicts: []dict.Location) 
             const client_socket = try server_socket.accept();
 
             const addr = try client_socket.getRemoteEndPoint();
-            log.info("New connection from {}", .{addr});
+            log.info("New connection from {f}", .{addr});
 
-            try arr.append(client_socket);
+            try arr.append(allocator, client_socket);
             try ss.add(client_socket, socket_event);
         }
 
         for (arr.items, 0..) |socket, i| {
             if (ss.isReadyRead(socket)) {
-                self.handleMessage(allocator, socket, &buf, &write_buf) catch |err| switch (err) {
+                self.handleMessage(allocator, socket, &buf, &write_allocating) catch |err| switch (err) {
                     error.Exit => {
                         return;
                     },
@@ -140,8 +140,8 @@ pub fn serve(self: *Self, allocator: std.mem.Allocator, dicts: []dict.Location) 
     }
 }
 
-fn handleMessage(self: *Self, allocator: std.mem.Allocator, socket: network.Socket, buf: []u8, output: *std.ArrayList(u8)) !void {
-    output.clearAndFree();
+fn handleMessage(self: *Self, allocator: std.mem.Allocator, socket: network.Socket, buf: []u8, writer_allocating: *std.Io.Writer.Allocating) !void {
+    writer_allocating.clearRetainingCapacity();
 
     const read = try socket.receive(buf);
     if (read == 0) {
@@ -162,7 +162,7 @@ fn handleMessage(self: *Self, allocator: std.mem.Allocator, socket: network.Sock
         return;
     }
 
-    try self.handlers[cmd].handle(allocator, output, line[1..]);
-    try output.append('\n');
-    _ = try socket.send(output.items);
+    try self.handlers[cmd].handle(allocator, &writer_allocating.writer, line[1..]);
+    try writer_allocating.writer.writeByte('\n');
+    _ = try socket.send(writer_allocating.written());
 }

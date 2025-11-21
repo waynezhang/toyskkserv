@@ -4,36 +4,28 @@
     .fingerprint = 0xee4533edf56159fb,
     .dependencies = .{
         .btree_zig = .{
-            .url = "git+https://github.com/waynezhang/btree.c-zig#6b0777b60be2339051879e9f8f52e822f4f930ef",
-            .hash = "btree_zig-0.0.1-HRfT6hw2AACw3JQn2hnVoh_W83j6o8LzyRt7no2FMKvh",
-        },
-        .protest = .{
-            .url = "git+https://github.com/waynezhang/protest#b194504ba4b130f3f636c59b5cb53f39256b231a",
-            .hash = "protest-0.1.0-PvViiK27AAAf7RwKNwRPsrHtjsTUkk-QxX2UD9Sj7njB",
+            .url = "git+https://github.com/waynezhang/btree.c-zig#38f8f7d86be4f105224704fecddf6b71fafdcd7c",
+            .hash = "btree_zig-0.0.1-2BG_Jhc3AAAp0OAdebaVRAmoUS5_yFdj5EfirtdtsmJU",
         },
         .network = .{
-            .url = "git+https://github.com/ikskuh/zig-network#c76240d2240711a3dcbf1c0fb461d5d1f18be79a",
-            .hash = "network-0.1.0-AAAAAOwlAQAQ6zKPUrsibdpGisxld9ftUKGdMvcCSpaj",
+            .url = "git+https://github.com/ikskuh/zig-network#7947237eec317d9458897f82089f343a05450c2b",
+            .hash = "network-0.1.0-Pm-Agl8xAQBmkwohveGOfTk4zQnuqDs0Ptfbms4KP5Ce",
         },
         .euc_jis_2004_zig = .{
-            .url = "git+https://github.com/waynezhang/euc-jis-2004-zig#a45a28945700210cf0b4871a9650e6e5dd17be11",
-            .hash = "euc_jis_2004_zig-0.0.2-M5nQCve4BgCiViK5J1OKia3_kswly9P6izEng1BB6Vft",
+            .url = "git+https://github.com/waynezhang/euc-jis-2004-zig#dac5c5c810ff0558c3810234aaacab4678deae36",
+            .hash = "euc_jis_2004_zig-0.0.3-M5nQClO0BgB2AIee6a5q53TEU6L8HkyBbmelnBuyhS_I",
         },
         .temp = .{
-            .url = "git+https://github.com/abhinav/temp.zig#382a711f253d54a88f222650e6c03b62411373c6",
-            .hash = "temp-0.3.0-Ogl1FSSBAAB2WXv3QbTYO3NYfVFoYTBkZsVK3MYvbxFE",
+            .url = "git+https://github.com/abhinav/temp.zig#7f0a9697d3d46d06c4f84fc3bc5199b7779fab33",
+            .hash = "temp-0.3.0-Ogl1Ff5-AABRtiHj_zDFI0CZVU8ORLPko6iQiw63Znrz",
         },
         .zutils = .{
-            .url = "git+https://github.com/waynezhang/zutils#39624670cb2ce77e662bde0063c4d787d3b42597",
-            .hash = "zutils-0.0.1-jNUB2ghVAADkJ9KmPyz5TdUYQdWpFJksgGUCYy02yQIj",
+            .url = "git+https://github.com/waynezhang/zutils#290c1a92b7cb42bd49005cb965695a98c29ab05b",
+            .hash = "zutils-0.0.2-jNUB2jdVAADIeEy02meXljjOs-wT9WRB8FCievmev64Z",
         },
         .parg = .{
-            .url = "git+https://github.com/judofyr/parg#f1fa9b9477abd21c2b775d5a51e42d149d908f57",
-            .hash = "parg-0.0.0-dOPWZH1XAAAveeTyz6L_X4RlfPwFctMHcdjPtvMZz4eY",
-        },
-        .jdz_allocator = .{
-            .url = "git+https://github.com/kython28/jdz_allocator#b8034dc0bcc6197064910a9982be68ffea261360",
-            .hash = "jdz_allocator-0.1.1-MT50pr1OAgCRgixFMufnta-ZTRDaX-mpowH-q2VwyXfk",
+            .url = "git+https://github.com/judofyr/parg#b9ce29e3dcbf9845dac8ee4b33a31bb1bff29f80",
+            .hash = "parg-0.0.0-dOPWZNhYAABEHE6EGXmwIucnu9vj-emodT9vmHeYynAP",
         },
     },
     .paths = .{

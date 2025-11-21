@@ -1,6 +1,5 @@
 const std = @import("std");
 const zutils = @import("zutils");
-const require = @import("protest").require;
 
 /// Caller owns the memory
 pub fn transliterateRequest(allocator: std.mem.Allocator, key: []const u8) ![]const u8 {
@@ -15,29 +14,30 @@ pub fn transliterateRequest(allocator: std.mem.Allocator, key: []const u8) ![]co
     defer client.deinit();
 
     const uri = try std.Uri.parse(url);
-    std.log.debug("Request to google {}", .{uri});
+    zutils.log.debug("Request to google {f}", .{uri});
 
     const buf_size: usize = 1024 * 1024;
-    var buffer = try allocator.alloc(u8, buf_size);
-    defer allocator.free(buffer);
+    const redirect_buffer = try allocator.alloc(u8, buf_size);
+    defer allocator.free(redirect_buffer);
 
-    var req = try client.open(.GET, uri, .{
-        .server_header_buffer = buffer,
+    var response_writer = std.Io.Writer.Allocating.init(allocator);
+    defer response_writer.deinit();
+
+    const response = try client.fetch(.{
+        .location = .{ .uri = uri },
+        .method = .GET,
+        .redirect_buffer = redirect_buffer,
+        .response_writer = &response_writer.writer,
     });
-    defer req.deinit();
 
-    try req.send();
-    try req.finish();
-    try req.wait();
-
-    if (req.response.status != .ok) {
+    if (response.status != .ok) {
         return error.NotFound;
     }
 
-    var reader = req.reader();
-    const len = try reader.readAll(buffer);
+    const body = try response_writer.toOwnedSlice();
+    defer allocator.free(body);
 
-    return try parseResponse(allocator, buffer[0..len], key);
+    return try parseResponse(allocator, body, key);
 }
 
 fn parseResponse(allocator: std.mem.Allocator, resp: []const u8, key: []const u8) ![]const u8 {
@@ -74,9 +74,10 @@ fn parseResponse(allocator: std.mem.Allocator, resp: []const u8, key: []const u8
         return error.NotFound;
     }
 
-    var result_arr = std.ArrayList(u8).init(allocator);
-    defer result_arr.deinit();
+    var allocating = std.Io.Writer.Allocating.init(allocator);
+    defer allocating.deinit();
 
+    var writer = &allocating.writer;
     for (array.items) |item| {
         const s = switch (item) {
             .string => |v| v,
@@ -86,31 +87,31 @@ fn parseResponse(allocator: std.mem.Allocator, resp: []const u8, key: []const u8
         if (std.mem.eql(u8, key, s)) {
             continue;
         }
-        try result_arr.append('/');
-        try result_arr.appendSlice(s);
+        try writer.writeByte('/');
+        _ = try writer.write(s);
     }
-    if (result_arr.items.len > 0) {
-        try result_arr.append('/');
+    if (allocating.written().len > 0) {
+        try writer.writeByte('/');
     }
 
-    return result_arr.toOwnedSlice();
+    return allocating.toOwnedSlice();
 }
 
 test "test 1+1" {
     const resp = try transliterateRequest(std.testing.allocator, "=1+1");
     defer std.testing.allocator.free(resp);
-    try require.equal("/2/2=1+1/＝１＋１/", resp);
+    try std.testing.expectEqualStrings("/2/2=1+1/＝１＋１/", resp);
 }
 
 test "test ちば" {
     const resp = try transliterateRequest(std.testing.allocator, "ちば");
     defer std.testing.allocator.free(resp);
-    try require.equal("/千葉/チバ/千羽/千波/千馬/", resp);
+    try std.testing.expectEqualStrings("/千葉/チバ/千羽/千波/千馬/", resp);
 }
 
 test "test empty" {
     const err = transliterateRequest(std.testing.allocator, "aaaaaaaaaaaaaaaaaaaaaaaaaaaa");
-    try require.equalError(error.NotFound, err);
+    try std.testing.expectError(error.NotFound, err);
 }
 
 test "test parseResponse =1+1" {
@@ -130,7 +131,7 @@ test "test parseResponse =1+1" {
 
     const resp = try parseResponse(std.testing.allocator, json_str, "=1+1");
     defer std.testing.allocator.free(resp);
-    try require.equal("/2/2=1+1/＝１＋１/", resp);
+    try std.testing.expectEqualStrings("/2/2=1+1/＝１＋１/", resp);
 }
 
 test "test parseResponse unmatch 1" {
@@ -149,7 +150,7 @@ test "test parseResponse unmatch 1" {
     ;
 
     if (parseResponse(std.testing.allocator, json_str, "1+1")) |_| {
-        try require.fail("should not success");
+        try std.testing.expect(false);
     } else |_| {}
 }
 
@@ -165,7 +166,7 @@ test "test parseResponse unmatch 2" {
     ;
 
     if (parseResponse(std.testing.allocator, json_str, "1+1")) |_| {
-        try require.fail("should not success");
+        try std.testing.expect(false);
     } else |_| {}
 }
 
@@ -185,7 +186,7 @@ test "test parseResponse unmatch 3" {
     ;
 
     if (parseResponse(std.testing.allocator, json_str, "1+1")) |_| {
-        try require.fail("should not success");
+        try std.testing.expect(false);
     } else |_| {}
 }
 
@@ -200,7 +201,7 @@ test "test parseResponse unmatch 4" {
     ;
 
     if (parseResponse(std.testing.allocator, json_str, "1+1")) |_| {
-        try require.fail("should not success");
+        try std.testing.expect(false);
     } else |_| {}
 }
 
@@ -220,6 +221,6 @@ test "test parseResponse unstructured 2" {
     ;
 
     if (parseResponse(std.testing.allocator, json_str, "1+1")) |_| {
-        try require.fail("should not success");
+        try std.testing.expect(false);
     } else |_| {}
 }

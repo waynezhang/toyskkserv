@@ -5,7 +5,6 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
     const name = "toyskkserv";
     const deps = &[_]Dep{
-        .{ .name = "jdz_allocator" },
         .{ .name = "network" },
         .{ .name = "temp" },
         .{ .name = "zutils" },
@@ -17,12 +16,10 @@ pub fn build(b: *std.Build) void {
         .{
             .name = "btree_zig",
             .module = "btree_c_zig",
-            .link = "btree-zig",
+            .link = "btree_zig",
         },
     };
-    const test_deps = &[_]Dep{
-        .{ .name = "protest" },
-    };
+    const test_deps = &[_]Dep{};
 
     prepareExe(name, b, target, optimize, deps);
 
@@ -52,12 +49,11 @@ fn getBuildOptions(b: *std.Build) *std.Build.Step.Options {
 }
 
 fn prepareExe(name: []const u8, b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, deps: []const Dep) void {
-    const exe = b.addExecutable(.{
-        .name = name,
+    const exe = b.addExecutable(.{ .name = name, .root_module = b.createModule(.{
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
-    });
+    }) });
 
     const opts = getBuildOptions(b);
     opts.addOption([]const u8, "name", name);
@@ -65,7 +61,7 @@ fn prepareExe(name: []const u8, b: *std.Build, target: std.Build.ResolvedTarget,
 
     for (deps) |d| {
         const module = d.module orelse d.name;
-        const dep = b.dependency(d.name, .{ .target = target, .optimize = optimize });
+        const dep = b.dependency(d.name, .{});
         const mod = dep.module(module);
         exe.root_module.addImport(d.name, mod);
 
@@ -88,14 +84,16 @@ fn prepareExe(name: []const u8, b: *std.Build, target: std.Build.ResolvedTarget,
 
 fn prepareTestExe(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, deps: []const Dep) void {
     const exe = b.addTest(.{
-        .root_source_file = b.path("src/test.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     for (deps) |d| {
         const module = d.module orelse d.name;
-        const dep = b.dependency(d.name, .{ .target = target, .optimize = optimize });
+        const dep = b.dependency(d.name, .{});
         const mod = dep.module(module);
         exe.root_module.addImport(d.name, mod);
 

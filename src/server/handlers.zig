@@ -5,8 +5,6 @@ const dict = @import("../dict/dict.zig");
 const google_api = @import("google_api.zig");
 const config = @import("../config.zig");
 
-const require = @import("protest").require;
-
 pub const Handler = union(enum) {
     disconnect_handler: DisconnectHandler,
     candidate_handler: CandidateHandler,
@@ -15,17 +13,17 @@ pub const Handler = union(enum) {
     custom_protocol_handler: CustomProtocolHandler,
     exit_handler: ExitHandler,
 
-    pub fn handle(self: Handler, alloc: std.mem.Allocator, buffer: *std.ArrayList(u8), line: []const u8) anyerror!void {
+    pub fn handle(self: Handler, alloc: std.mem.Allocator, writer: *std.Io.Writer, line: []const u8) anyerror!void {
         switch (self) {
             inline else => |case| {
-                try case.handle(alloc, buffer, line);
+                try case.handle(alloc, writer, line);
             },
         }
     }
 };
 
 pub const ExitHandler = struct {
-    fn handle(_: ExitHandler, _: std.mem.Allocator, _: *std.ArrayList(u8), _: []const u8) !void {
+    fn handle(_: ExitHandler, _: std.mem.Allocator, _: *std.Io.Writer, _: []const u8) !void {
         if (@import("builtin").mode == .Debug) {
             return error.Exit;
         } else unreachable;
@@ -33,29 +31,29 @@ pub const ExitHandler = struct {
 };
 
 test "ExitHandler" {
-    var arr = std.ArrayList(u8).init(std.testing.allocator);
-    defer arr.deinit();
+    var allocating = std.Io.Writer.Allocating.init(std.testing.allocator);
+    defer allocating.deinit();
 
     var h = ExitHandler{};
-    const err = h.handle(std.testing.allocator, &arr, "");
+    const err = h.handle(std.testing.allocator, &allocating.writer, "");
 
-    try require.equalError(error.Exit, err);
+    try std.testing.expectError(error.Exit, err);
 }
 
 pub const DisconnectHandler = struct {
-    fn handle(_: DisconnectHandler, _: std.mem.Allocator, _: *std.ArrayList(u8), _: []const u8) !void {
+    fn handle(_: DisconnectHandler, _: std.mem.Allocator, _: *std.Io.Writer, _: []const u8) !void {
         return error.Disconnect;
     }
 };
 
 test "DisconnectHandler" {
-    var arr = std.ArrayList(u8).init(std.testing.allocator);
-    defer arr.deinit();
+    var allocating = std.Io.Writer.Allocating.init(std.testing.allocator);
+    defer allocating.deinit();
 
     var h = DisconnectHandler{};
-    const err = h.handle(std.testing.allocator, &arr, "");
+    const err = h.handle(std.testing.allocator, &allocating.writer, "");
 
-    try require.equalError(error.Disconnect, err);
+    try std.testing.expectError(error.Disconnect, err);
 }
 
 pub const CandidateHandler = struct {
@@ -69,24 +67,24 @@ pub const CandidateHandler = struct {
         };
     }
 
-    fn handle(self: CandidateHandler, alloc: std.mem.Allocator, buffer: *std.ArrayList(u8), line: []const u8) !void {
+    fn handle(self: CandidateHandler, alloc: std.mem.Allocator, writer: *std.Io.Writer, line: []const u8) !void {
         const cdd = self.dict_mgr.findCandidate(alloc, line);
         if (cdd.len > 0) {
-            return try resp.generateResponse(buffer, line, cdd);
+            return try resp.generateResponse(writer, line, cdd);
         }
         if (!self.use_google) {
-            return try resp.generateResponse(buffer, line, "");
+            return try resp.generateResponse(writer, line, "");
         }
 
         log.debug("Fallback to google", .{});
 
         const fallback = google_api.transliterateRequest(alloc, line) catch |err| {
             log.err("Failed to make request due to {}", .{err});
-            return try resp.generateResponse(buffer, line, "");
+            return try resp.generateResponse(writer, line, "");
         };
         defer alloc.free(fallback);
 
-        return try resp.generateResponse(buffer, line, fallback);
+        return try resp.generateResponse(writer, line, fallback);
     }
 };
 
@@ -101,26 +99,26 @@ test "CandidateHandler" {
     };
     try mgr.reloadLocations(locations, ".");
 
-    var arr = std.ArrayList(u8).init(alloc);
-    defer arr.deinit();
+    var allocating = std.Io.Writer.Allocating.init(alloc);
+    defer allocating.deinit();
 
     var h = CandidateHandler.init(&mgr, true);
 
-    try h.handle(alloc, &arr, "1024");
-    try require.equal("1/キロ/", arr.items);
+    try h.handle(alloc, &allocating.writer, "1024");
+    try std.testing.expectEqualStrings("1/キロ/", allocating.written());
 
-    arr.clearAndFree();
-    try h.handle(alloc, &arr, "smile");
-    try require.equal("4smile ", arr.items);
+    allocating.clearRetainingCapacity();
+    try h.handle(alloc, &allocating.writer, "smile");
+    try std.testing.expectEqualStrings("4smile ", allocating.written());
 
-    arr.clearAndFree();
-    try h.handle(alloc, &arr, "=1+1");
-    try require.equal("1/2/2=1+1/＝１＋１/", arr.items);
+    allocating.clearRetainingCapacity();
+    try h.handle(alloc, &allocating.writer, "=1+1");
+    try std.testing.expectEqualStrings("1/2/2=1+1/＝１＋１/", allocating.written());
 
+    allocating.clearRetainingCapacity();
     h.use_google = false;
-    arr.clearAndFree();
-    try h.handle(alloc, &arr, "=1+1");
-    try require.equal("4=1+1 ", arr.items);
+    try h.handle(alloc, &allocating.writer, "=1+1");
+    try std.testing.expectEqualStrings("4=1+1 ", allocating.written());
 }
 
 pub const CompletionHandler = struct {
@@ -132,11 +130,11 @@ pub const CompletionHandler = struct {
         };
     }
 
-    fn handle(self: CompletionHandler, alloc: std.mem.Allocator, buffer: *std.ArrayList(u8), line: []const u8) !void {
+    fn handle(self: CompletionHandler, alloc: std.mem.Allocator, writer: *std.Io.Writer, line: []const u8) !void {
         const cdd = try self.dict_mgr.findCompletion(alloc, line, 100);
         defer alloc.free(cdd);
 
-        try resp.generateResponse(buffer, line, cdd);
+        try resp.generateResponse(writer, line, cdd);
     }
 };
 
@@ -151,17 +149,17 @@ test "CompletionHandler" {
     };
     try mgr.reloadLocations(locations, ".");
 
-    var arr = std.ArrayList(u8).init(alloc);
-    defer arr.deinit();
+    var allocating = std.Io.Writer.Allocating.init(alloc);
+    defer allocating.deinit();
 
     var h = CompletionHandler.init(&mgr);
 
-    try h.handle(alloc, &arr, "1");
-    try require.equal("1/1024/1seg/", arr.items);
+    try h.handle(alloc, &allocating.writer, "1");
+    try std.testing.expectEqualStrings("1/1024/1seg/", allocating.written());
 
-    arr.clearAndFree();
-    try h.handle(alloc, &arr, "smile");
-    try require.equal("4smile ", arr.items);
+    allocating.clearRetainingCapacity();
+    try h.handle(alloc, &allocating.writer, "smile");
+    try std.testing.expectEqualStrings("4smile ", allocating.written());
 }
 
 pub fn RawStringHandler(size: usize) type {
@@ -178,20 +176,20 @@ pub fn RawStringHandler(size: usize) type {
             return self;
         }
 
-        fn handle(self: RawStringHandler(size), _: std.mem.Allocator, buffer: *std.ArrayList(u8), _: []const u8) !void {
-            try buffer.appendSlice(self.str[0..self.len]);
+        fn handle(self: RawStringHandler(size), _: std.mem.Allocator, writer: *std.Io.Writer, _: []const u8) !void {
+            _ = try writer.write(self.str[0..self.len]);
         }
     };
 }
 
 test "RawStringHandler" {
-    var arr = std.ArrayList(u8).init(std.testing.allocator);
-    defer arr.deinit();
+    var allocating = std.Io.Writer.Allocating.init(std.testing.allocator);
+    defer allocating.deinit();
 
     var h = RawStringHandler(512).init("a string");
 
-    try h.handle(std.testing.allocator, &arr, "");
-    try require.equal("a string", arr.items);
+    try h.handle(std.testing.allocator, &allocating.writer, "");
+    try std.testing.expectEqualStrings("a string", allocating.written());
 }
 
 pub const CustomProtocolHandler = struct {
@@ -203,7 +201,7 @@ pub const CustomProtocolHandler = struct {
         };
     }
 
-    fn handle(self: CustomProtocolHandler, alloc: std.mem.Allocator, _: *std.ArrayList(u8), req: []const u8) !void {
+    fn handle(self: CustomProtocolHandler, alloc: std.mem.Allocator, _: *std.Io.Writer, req: []const u8) !void {
         if (std.mem.eql(u8, req, "reload")) {
             log.info("Reload", .{});
 
