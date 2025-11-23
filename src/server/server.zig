@@ -108,6 +108,7 @@ pub fn serve(self: *Self, allocator: std.mem.Allocator, dicts: []dict.Location) 
 
     var buf = [_]u8{0} ** 4096;
     var write_allocating = std.Io.Writer.Allocating.init(allocator);
+    defer write_allocating.deinit();
 
     while (true) {
         _ = try network.waitForSocketEvent(&ss, null);

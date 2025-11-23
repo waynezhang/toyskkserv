@@ -5,8 +5,18 @@ const log = @import("zutils").log;
 const version = @import("version.zig");
 const cmd = @import("cmd/cmd.zig");
 
+var debug_allocator: std.heap.DebugAllocator(.{}) = .init;
+
 pub fn main() !void {
-    const alloc = std.heap.smp_allocator;
+    const alloc, const is_debug = alloc: {
+        break :alloc switch (builtin.mode) {
+            .Debug, .ReleaseSafe => .{ debug_allocator.allocator(), true },
+            .ReleaseFast, .ReleaseSmall => .{ std.heap.smp_allocator, false },
+        };
+    };
+    defer if (is_debug) {
+        std.debug.assert(debug_allocator.deinit() == .ok);
+    };
 
     log.init();
 
