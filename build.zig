@@ -60,11 +60,11 @@ fn prepareExe(name: []const u8, b: *std.Build, target: std.Build.ResolvedTarget,
     exe.root_module.addOptions("build_options", opts);
 
     for (deps) |d| {
-        const module = d.module orelse d.name;
-        const dep = b.dependency(d.name, .{});
-        const mod = dep.module(module);
-        mod.optimize = optimize;
-        mod.resolved_target = target;
+        const mod_name = d.module orelse d.name;
+        const dep = b.dependency(d.name, .{
+            .target = target,
+        });
+        const mod = dep.module(mod_name);
         exe.root_module.addImport(d.name, mod);
 
         if (d.link) |l| {
@@ -95,7 +95,9 @@ fn prepareTestExe(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std
 
     for (deps) |d| {
         const module = d.module orelse d.name;
-        const dep = b.dependency(d.name, .{});
+        const dep = b.dependency(d.name, .{
+            .target = target,
+        });
         const mod = dep.module(module);
         exe.root_module.addImport(d.name, mod);
 
