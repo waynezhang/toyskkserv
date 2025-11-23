@@ -63,6 +63,8 @@ fn prepareExe(name: []const u8, b: *std.Build, target: std.Build.ResolvedTarget,
         const module = d.module orelse d.name;
         const dep = b.dependency(d.name, .{});
         const mod = dep.module(module);
+        mod.optimize = optimize;
+        mod.resolved_target = target;
         exe.root_module.addImport(d.name, mod);
 
         if (d.link) |l| {
