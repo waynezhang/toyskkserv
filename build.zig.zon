@@ -20,8 +20,8 @@
             .hash = "temp-0.3.0-Ogl1Ff5-AABRtiHj_zDFI0CZVU8ORLPko6iQiw63Znrz",
         },
         .zutils = .{
-            .url = "git+https://github.com/waynezhang/zutils#290c1a92b7cb42bd49005cb965695a98c29ab05b",
-            .hash = "zutils-0.0.2-jNUB2jdVAADIeEy02meXljjOs-wT9WRB8FCievmev64Z",
+            .url = "git+https://github.com/waynezhang/zutils#f51015bfdad4aa445bbc8db95cb0f445a864c333",
+            .hash = "zutils-0.0.2-jNUB2iJVAACF0kE8gjKdhMC_VVz8G5TNpbQi6P5MjD21",
         },
         .parg = .{
             .url = "git+https://github.com/judofyr/parg#b9ce29e3dcbf9845dac8ee4b33a31bb1bff29f80",
