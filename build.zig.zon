@@ -4,8 +4,8 @@
     .fingerprint = 0xee4533edf56159fb,
     .dependencies = .{
         .btree_zig = .{
-            .url = "git+https://github.com/waynezhang/btree.c-zig#38f8f7d86be4f105224704fecddf6b71fafdcd7c",
-            .hash = "btree_zig-0.0.1-2BG_Jhc3AAAp0OAdebaVRAmoUS5_yFdj5EfirtdtsmJU",
+            .url = "git+https://github.com/waynezhang/btree.c-zig#7446e12ee4f8f2a3733607ccb7f2812519b26087",
+            .hash = "btree_zig-0.0.1-2BG_Jjc3AABLc48kjcAEN3SbL-ksfzf0KFN_x7XWw7OH",
         },
         .network = .{
             .url = "git+https://github.com/ikskuh/zig-network#7947237eec317d9458897f82089f343a05450c2b",
