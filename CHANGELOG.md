@@ -1,3 +1,10 @@
+## v1.0.3 (2025-11-26)
+
+### New feature
+
+- migrate to dogmalloc ([1e3f899](https://github.com/waynezhang/toyskkserv/commit/1e3f899a51cfb205a57b62b834178edaedb791fb))
+
+
 ## v1.0.2 (2025-11-23)
 
 ### Fix
