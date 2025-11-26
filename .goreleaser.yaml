@@ -3,7 +3,7 @@ version: 2
 builds:
   - builder: zig
     flags:
-      - -Doptimize=ReleaseFast
+      - --release=fast
     targets:
       - x86_64-linux
       - x86_64-windows
@@ -23,7 +23,7 @@ archives:
       - goos: windows
         formats: ["zip"]
 
-brews:
+homebrew_casks:
   - repository:
       owner: waynezhang
       name: homebrew-tap
