@@ -27,6 +27,10 @@
             .url = "git+https://github.com/judofyr/parg#b9ce29e3dcbf9845dac8ee4b33a31bb1bff29f80",
             .hash = "parg-0.0.0-dOPWZNhYAABEHE6EGXmwIucnu9vj-emodT9vmHeYynAP",
         },
+        .dogmalloc = .{
+            .url = "git+https://github.com/rmehri01/dogmalloc#1bb39a27a2e689a4e72790dbbfc404427b0665b7",
+            .hash = "dogmalloc-0.0.0-v9dhXrN-AADK1USu-OaP_OIXwp0uzMKPaotAM6xFepg0",
+        },
     },
     .paths = .{
         "build.zig",

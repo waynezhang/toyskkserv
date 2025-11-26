@@ -9,6 +9,7 @@ pub fn build(b: *std.Build) void {
         .{ .name = "temp" },
         .{ .name = "zutils" },
         .{ .name = "parg" },
+        .{ .name = "dogmalloc" },
         .{
             .name = "euc_jis_2004_zig",
             .module = "euc-jis-2004",
