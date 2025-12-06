@@ -28,8 +28,8 @@
             .hash = "parg-0.0.0-dOPWZNhYAABEHE6EGXmwIucnu9vj-emodT9vmHeYynAP",
         },
         .dogmalloc = .{
-            .url = "git+https://github.com/rmehri01/dogmalloc#1bb39a27a2e689a4e72790dbbfc404427b0665b7",
-            .hash = "dogmalloc-0.0.0-v9dhXrN-AADK1USu-OaP_OIXwp0uzMKPaotAM6xFepg0",
+            .url = "git+https://codeberg.org/rmehri01/dogmalloc#94cdc075399d3f62ed500e9017f11b8879fd7e94",
+            .hash = "dogmalloc-0.0.0-v9dhXgCVAAAQaLWpuOxDjQKZiOWpL-PcReBJr16t-i1R",
         },
     },
     .paths = .{
