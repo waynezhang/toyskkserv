@@ -1,0 +1,3 @@
+#!/bin/bash
+
+cat build.zig.zon | grep git | sed 's/.*\.url = "\([^#]*\).*/\1/g' | xargs -I{} zig fetch --save {}
