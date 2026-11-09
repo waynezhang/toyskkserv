@@ -119,16 +119,16 @@ test "parseAddrPort" {
 
 /// Encodes a string for safe use in URL query parameters.
 /// Caller must free the returned memory.
-/// Preserves alphanumerics, unreserved chars (-._~), and non-ASCII characters (including CJK).
-/// Only ASCII special characters are percent-encoded.
+/// Preserves alphanumerics and unreserved chars (-._~); everything else,
+/// including non-ASCII UTF-8 bytes, is percent-encoded.
 pub fn encodeQueryComponentAlloc(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
     var result = std.Io.Writer.Allocating.init(allocator);
     defer result.deinit();
 
-    // This function preserves alphanumerics, unreserved chars, and all non-ASCII chars
+    // Only RFC 3986 unreserved chars are left as-is
     const isValidQueryChar = struct {
         fn isValid(c: u8) bool {
-            return std.ascii.isAlphanumeric(c) or c == '-' or c == '.' or c == '_' or c == '~' or c >= 128;
+            return std.ascii.isAlphanumeric(c) or c == '-' or c == '.' or c == '_' or c == '~';
         }
     }.isValid;
 
@@ -156,11 +156,11 @@ test "encodeQueryComponentAlloc" {
         try testing.expectEqualStrings("a%3D1%26b%3D2%2Bc%3Fd%2Fe", encoded);
     }
 
-    // Test non-ASCII Unicode characters (should be preserved)
+    // Test non-ASCII Unicode characters (UTF-8 bytes are percent-encoded)
     {
         const input = "こんにちは"; // "Hello" in Japanese
         const encoded = try encodeQueryComponentAlloc(allocator, input);
         defer allocator.free(encoded);
-        try testing.expectEqualStrings("こんにちは", encoded);
+        try testing.expectEqualStrings("%E3%81%93%E3%82%93%E3%81%AB%E3%81%A1%E3%81%AF", encoded);
     }
 }
