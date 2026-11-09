@@ -19,10 +19,6 @@
             .url = "git+https://github.com/abhinav/temp.zig#cf2317e06d32f3f0abdfc743c7a5950d9fdb2d19",
             .hash = "temp-0.3.0-Ogl1Ff5-AABRtiHj_zDFI0CZVU8ORLPko6iQiw63Znrz",
         },
-        .zutils = .{
-            .url = "git+https://github.com/waynezhang/zutils#f51015bfdad4aa445bbc8db95cb0f445a864c333",
-            .hash = "zutils-0.0.2-jNUB2iJVAACF0kE8gjKdhMC_VVz8G5TNpbQi6P5MjD21",
-        },
         .parg = .{
             .url = "git+https://github.com/judofyr/parg#b9ce29e3dcbf9845dac8ee4b33a31bb1bff29f80",
             .hash = "parg-0.0.0-dOPWZNhYAABEHE6EGXmwIucnu9vj-emodT9vmHeYynAP",

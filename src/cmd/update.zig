@@ -1,6 +1,6 @@
 const std = @import("std");
 const config = @import("../config.zig");
-const log = @import("zutils").log;
+const log = @import("../utils/utils.zig").log;
 const dict = @import("../dict/dict.zig");
 
 pub fn update(alloc: std.mem.Allocator) !void {

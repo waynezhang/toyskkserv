@@ -1,6 +1,6 @@
 const std = @import("std");
 const resp = @import("response.zig");
-const log = @import("zutils").log;
+const log = @import("../utils/utils.zig").log;
 const dict = @import("../dict/dict.zig");
 const google_api = @import("google_api.zig");
 const config = @import("../config.zig");

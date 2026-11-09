@@ -1,6 +1,6 @@
 const std = @import("std");
 const dict = @import("dict/dict.zig");
-const zutils = @import("zutils");
+const utils = @import("utils/utils.zig");
 
 const Self = @This();
 
@@ -24,12 +24,12 @@ pub fn loadConfig(alloc: std.mem.Allocator) !Self {
 
 fn parseConfig(allocator: std.mem.Allocator, files: []const []const u8) !Self {
     for (files) |file| {
-        const path = zutils.fs.toAbsolutePathAlloc(allocator, file, null) catch {
+        const path = utils.fs.toAbsolutePathAlloc(allocator, file, null) catch {
             continue;
         };
         defer allocator.free(path);
 
-        zutils.log.debug("Found config file at {s}", .{path});
+        utils.log.debug("Found config file at {s}", .{path});
         const txt = std.fs.cwd().readFileAllocOptions(allocator, path, std.math.maxInt(usize), null, .@"8", 0) catch {
             continue;
         };

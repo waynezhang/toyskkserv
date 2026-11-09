@@ -1,6 +1,6 @@
 const std = @import("std");
 const config = @import("../config.zig");
-const zutils = @import("zutils");
+const utils = @import("../utils/utils.zig");
 const log = std.log;
 
 pub fn reload(alloc: std.mem.Allocator) !void {
@@ -10,5 +10,5 @@ pub fn reload(alloc: std.mem.Allocator) !void {
     };
     defer cfg.deinit(alloc);
 
-    try zutils.net.sendTCPMessage(cfg.listen_addr, "5reload");
+    try utils.net.sendTCPMessage(cfg.listen_addr, "5reload");
 }

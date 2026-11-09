@@ -7,7 +7,6 @@ pub fn build(b: *std.Build) void {
     const deps = &[_]Dep{
         .{ .name = "network" },
         .{ .name = "temp" },
-        .{ .name = "zutils" },
         .{ .name = "parg" },
         .{ .name = "dogmalloc" },
         .{

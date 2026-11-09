@@ -7,6 +7,10 @@ comptime {
     _ = @import("server/handlers.zig");
     _ = @import("server/response.zig");
     _ = @import("skk/skk.zig");
+    _ = @import("utils/fs.zig");
+    _ = @import("utils/gzip.zig");
+    _ = @import("utils/http.zig");
+    _ = @import("utils/net.zig");
     _ = @import("utils/url.zig");
 }
 

@@ -1,9 +1,9 @@
 const std = @import("std");
-const zutils = @import("zutils");
+const utils = @import("../utils/utils.zig");
 
 /// Caller owns the memory
 pub fn transliterateRequest(allocator: std.mem.Allocator, key: []const u8) ![]const u8 {
-    const encoded = try zutils.net.encodeQueryComponentAlloc(allocator, key);
+    const encoded = try utils.net.encodeQueryComponentAlloc(allocator, key);
     defer allocator.free(encoded);
 
     const base_url = "http://www.google.com/transliterate?langpair=ja-Hira|ja&text=";
@@ -14,7 +14,7 @@ pub fn transliterateRequest(allocator: std.mem.Allocator, key: []const u8) ![]co
     defer client.deinit();
 
     const uri = try std.Uri.parse(url);
-    zutils.log.debug("Request to google {f}", .{uri});
+    utils.log.debug("Request to google {f}", .{uri});
 
     const buf_size: usize = 1024 * 1024;
     const redirect_buffer = try allocator.alloc(u8, buf_size);
@@ -106,7 +106,20 @@ test "test 1+1" {
 test "test ちば" {
     const resp = try transliterateRequest(std.testing.allocator, "ちば");
     defer std.testing.allocator.free(resp);
-    try std.testing.expectEqualStrings("/千葉/チバ/千羽/千波/千馬/", resp);
+    // Google may reorder candidates, so only check the set.
+    try std.testing.expect(std.mem.startsWith(u8, resp, "/"));
+    try std.testing.expect(std.mem.endsWith(u8, resp, "/"));
+    const expected = [_][]const u8{ "千葉", "チバ", "千羽", "千波", "千馬" };
+    var count: usize = 0;
+    var it = std.mem.tokenizeScalar(u8, resp, '/');
+    while (it.next()) |c| : (count += 1) {
+        var found = false;
+        for (expected) |e| {
+            if (std.mem.eql(u8, c, e)) found = true;
+        }
+        try std.testing.expect(found);
+    }
+    try std.testing.expectEqual(expected.len, count);
 }
 
 test "test empty" {
