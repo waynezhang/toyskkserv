@@ -106,7 +106,20 @@ test "test 1+1" {
 test "test ちば" {
     const resp = try transliterateRequest(std.testing.allocator, "ちば");
     defer std.testing.allocator.free(resp);
-    try std.testing.expectEqualStrings("/千葉/チバ/千羽/千波/千馬/", resp);
+    // Google may reorder candidates, so only check the set.
+    try std.testing.expect(std.mem.startsWith(u8, resp, "/"));
+    try std.testing.expect(std.mem.endsWith(u8, resp, "/"));
+    const expected = [_][]const u8{ "千葉", "チバ", "千羽", "千波", "千馬" };
+    var count: usize = 0;
+    var it = std.mem.tokenizeScalar(u8, resp, '/');
+    while (it.next()) |c| : (count += 1) {
+        var found = false;
+        for (expected) |e| {
+            if (std.mem.eql(u8, c, e)) found = true;
+        }
+        try std.testing.expect(found);
+    }
+    try std.testing.expectEqual(expected.len, count);
 }
 
 test "test empty" {
