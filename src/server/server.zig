@@ -3,7 +3,7 @@ const builtin = @import("builtin");
 const network = @import("network");
 const euc_jp = @import("euc_jis_2004_zig");
 const req_handlers = @import("handlers.zig");
-const log = @import("zutils").log;
+const log = @import("../utils/utils.zig").log;
 const version = @import("../version.zig");
 const dict = @import("../dict/dict.zig");
 

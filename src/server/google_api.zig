@@ -1,9 +1,9 @@
 const std = @import("std");
-const zutils = @import("zutils");
+const utils = @import("../utils/utils.zig");
 
 /// Caller owns the memory
 pub fn transliterateRequest(allocator: std.mem.Allocator, key: []const u8) ![]const u8 {
-    const encoded = try zutils.net.encodeQueryComponentAlloc(allocator, key);
+    const encoded = try utils.net.encodeQueryComponentAlloc(allocator, key);
     defer allocator.free(encoded);
 
     const base_url = "http://www.google.com/transliterate?langpair=ja-Hira|ja&text=";
@@ -14,7 +14,7 @@ pub fn transliterateRequest(allocator: std.mem.Allocator, key: []const u8) ![]co
     defer client.deinit();
 
     const uri = try std.Uri.parse(url);
-    zutils.log.debug("Request to google {f}", .{uri});
+    utils.log.debug("Request to google {f}", .{uri});
 
     const buf_size: usize = 1024 * 1024;
     const redirect_buffer = try allocator.alloc(u8, buf_size);

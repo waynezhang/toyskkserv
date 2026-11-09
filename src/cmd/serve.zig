@@ -1,5 +1,5 @@
 const std = @import("std");
-const log = @import("zutils").log;
+const log = @import("../utils/utils.zig").log;
 const Server = @import("../server/server.zig").Server;
 const config = @import("../config.zig");
 const dict = @import("../dict/dict.zig");

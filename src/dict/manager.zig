@@ -1,5 +1,5 @@
 const std = @import("std");
-const log = @import("zutils").log;
+const log = @import("../utils/utils.zig").log;
 const btree = @import("btree_zig");
 const Location = @import("location.zig");
 const skk = @import("../skk/skk.zig");

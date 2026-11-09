@@ -1,7 +1,6 @@
 const std = @import("std");
 const utils = @import("../utils/utils.zig");
-const zutils = @import("zutils");
-const log = zutils.log;
+const log = utils.log;
 
 const Self = @This();
 
@@ -14,15 +13,15 @@ pub fn fileList(alloc: std.mem.Allocator, locations: []const Self, base_path: []
 
     for (locations) |loc| {
         if (utils.url.isGzip(loc.url)) {
-            try arr.append(alloc, try zutils.fs.toAbsolutePathAlloc(alloc, std.mem.trimRight(u8, std.fs.path.basename(loc.url), ".gz"), base_path));
+            try arr.append(alloc, try utils.fs.toAbsolutePathAlloc(alloc, std.mem.trimRight(u8, std.fs.path.basename(loc.url), ".gz"), base_path));
         } else if (utils.url.isTar(loc.url)) {
             for (loc.files) |f| {
-                try arr.append(alloc, try zutils.fs.toAbsolutePathAlloc(alloc, std.fs.path.basename(f), base_path));
+                try arr.append(alloc, try utils.fs.toAbsolutePathAlloc(alloc, std.fs.path.basename(f), base_path));
             }
         } else if (utils.url.isHttpUrl(loc.url)) {
-            try arr.append(alloc, try zutils.fs.toAbsolutePathAlloc(alloc, std.fs.path.basename(loc.url), base_path));
+            try arr.append(alloc, try utils.fs.toAbsolutePathAlloc(alloc, std.fs.path.basename(loc.url), base_path));
         } else {
-            try arr.append(alloc, try zutils.fs.toAbsolutePathAlloc(alloc, loc.url, base_path));
+            try arr.append(alloc, try utils.fs.toAbsolutePathAlloc(alloc, loc.url, base_path));
         }
     }
 
@@ -35,7 +34,7 @@ test "fileList" {
     const cwd = try std.fs.cwd().realpathAlloc(alloc, ".");
     defer alloc.free(cwd);
 
-    const home = try zutils.fs.expandTildeAlloc(alloc, "~");
+    const home = try utils.fs.expandTildeAlloc(alloc, "~");
     defer alloc.free(home);
 
     const locations: []const Self = &.{
@@ -100,7 +99,7 @@ pub fn downloadDicts(
     base_path: []const u8,
     force_download: bool,
 ) !void {
-    const abs_base_path = try zutils.fs.toAbsolutePathAlloc(alloc, base_path, null);
+    const abs_base_path = try utils.fs.toAbsolutePathAlloc(alloc, base_path, null);
     defer alloc.free(abs_base_path);
 
     std.fs.cwd().makeDir(abs_base_path) catch |err| switch (err) {
@@ -145,7 +144,7 @@ test "downloadDicts" {
         const p = try std.fs.path.join(alloc, &[_][]const u8{ path, file });
         defer alloc.free(p);
 
-        try std.testing.expect(zutils.fs.isExisting(p));
+        try std.testing.expect(utils.fs.isExisting(p));
     }
 }
 
@@ -217,7 +216,7 @@ const DownloadSM = struct {
                 return;
             },
             .WaitForDowload => {
-                try zutils.http.download(alloc, self.loc.url, self.tmp_file.path);
+                try utils.http.download(alloc, self.loc.url, self.tmp_file.path);
 
                 self.state = .WaitForExtract;
                 return;
@@ -244,7 +243,7 @@ const DownloadSM = struct {
                     const decompressed_path = try std.fmt.allocPrint(alloc, "{s}-decompressed", .{self.tmp_file.path});
                     errdefer alloc.free(decompressed_path);
 
-                    try zutils.gzip.unarchive(self.tmp_file.path, decompressed_path);
+                    try utils.gzip.unarchive(self.tmp_file.path, decompressed_path);
 
                     const info = try alloc.create(FileInfo);
                     info.path = decompressed_path;
@@ -258,10 +257,10 @@ const DownloadSM = struct {
                 }
 
                 // tar
-                try zutils.gzip.extractTarball(self.tmp_file.path, self.tmp_file.dirPath);
+                try utils.gzip.extractTarball(self.tmp_file.path, self.tmp_file.dirPath);
 
                 for (self.loc.files) |f| {
-                    const decompressed_path = try zutils.fs.toAbsolutePathAlloc(alloc, f, self.tmp_file.dirPath);
+                    const decompressed_path = try utils.fs.toAbsolutePathAlloc(alloc, f, self.tmp_file.dirPath);
 
                     const info = try alloc.create(FileInfo);
                     info.path = decompressed_path;
@@ -275,10 +274,10 @@ const DownloadSM = struct {
                 defer self.state = .WaitForNotification;
 
                 for (self.file_infos) |f| {
-                    const dst_file = try zutils.fs.toAbsolutePathAlloc(alloc, f.filename, self.base_path);
+                    const dst_file = try utils.fs.toAbsolutePathAlloc(alloc, f.filename, self.base_path);
                     defer alloc.free(dst_file);
 
-                    const updated = zutils.fs.isDifferent(alloc, f.path, dst_file);
+                    const updated = utils.fs.isDifferent(alloc, f.path, dst_file);
                     if (updated) {
                         if (std.fs.renameAbsolute(f.path, dst_file)) {
                             f.result = .Updated;
@@ -327,15 +326,15 @@ fn shouldSkip(alloc: std.mem.Allocator, loc: Self, base_path: []const u8, force_
             std.mem.trimRight(u8, std.fs.path.basename(loc.url), ".gz"),
         });
         defer alloc.free(path);
-        return zutils.fs.isExisting(path);
+        return utils.fs.isExisting(path);
     }
 
     if (utils.url.isTar(loc.url)) {
         for (loc.files) |f| {
-            const path = try zutils.fs.toAbsolutePathAlloc(alloc, std.fs.path.basename(f), base_path);
+            const path = try utils.fs.toAbsolutePathAlloc(alloc, std.fs.path.basename(f), base_path);
             defer alloc.free(path);
 
-            if (!zutils.fs.isExisting(path)) {
+            if (!utils.fs.isExisting(path)) {
                 return false;
             }
         }
@@ -344,7 +343,7 @@ fn shouldSkip(alloc: std.mem.Allocator, loc: Self, base_path: []const u8, force_
 
     const path = try std.fs.path.join(alloc, &[_][]const u8{ base_path, std.fs.path.basename(loc.url) });
     defer alloc.free(path);
-    return zutils.fs.isExisting(path);
+    return utils.fs.isExisting(path);
 }
 
 test "shouldSkip" {
