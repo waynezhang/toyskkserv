@@ -1,3 +1,14 @@
+## v1.0.4 (2026-11-09)
+
+### Fix
+
+- percent-encode non-ASCII bytes in Google API query ([09869df](https://github.com/waynezhang/toyskkserv/commit/09869dfc61b3022b9773a48cb892aea025bed5c0))
+
+### Refactor
+
+- merge zutils into src/utils and drop the dependency ([78a0207](https://github.com/waynezhang/toyskkserv/commit/78a0207bef0ae9f8ca0ddc8670a8efa253df227b))
+
+
 ## v1.0.3 (2025-11-26)
 
 ### New feature
