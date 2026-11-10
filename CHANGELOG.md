@@ -1,3 +1,10 @@
+## v1.0.5 (2026-11-10)
+
+### Fix
+
+- Upgrade to zig 0.17 ([2151841](https://github.com/waynezhang/toyskkserv/commit/2151841b13547b3a78489e93b6209857973ddda5))
+
+
 ## v1.0.4 (2026-11-09)
 
 ### Fix
