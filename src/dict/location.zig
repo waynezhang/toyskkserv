@@ -169,7 +169,25 @@ const DownloadSM = struct {
         };
         filename: []const u8,
         path: []const u8,
-        result: Result,
+        result: Result = .NotUpdated,
+
+        /// Takes ownership of `path`, even on failure.
+        fn create(alloc: std.mem.Allocator, path: []const u8, filename: []const u8) !*FileInfo {
+            errdefer alloc.free(path);
+            const info = try alloc.create(FileInfo);
+            errdefer alloc.destroy(info);
+            info.* = .{
+                .path = path,
+                .filename = try alloc.dupe(u8, filename),
+            };
+            return info;
+        }
+
+        fn destroy(self: *FileInfo, alloc: std.mem.Allocator) void {
+            alloc.free(self.filename);
+            alloc.free(self.path);
+            alloc.destroy(self);
+        }
     };
 
     loc: Self,
@@ -178,7 +196,8 @@ const DownloadSM = struct {
 
     state: State = .NotStarted,
     is_skipped: bool = false,
-    tmp_file: utils.fs.TmpFile = undefined,
+    /// Null until created, so deinit is safe if an earlier step failed.
+    tmp_file: ?utils.fs.TmpFile = null,
     file_infos: []*FileInfo = &.{},
 
     fn init(loc: Self, base_path: []const u8, force_download: bool) @This() {
@@ -191,16 +210,12 @@ const DownloadSM = struct {
 
     fn deinit(self: *DownloadSM, io: std.Io, alloc: std.mem.Allocator) void {
         if (self.file_infos.len > 0) {
-            for (self.file_infos) |f| {
-                alloc.free(f.filename);
-                alloc.free(f.path);
-                alloc.destroy(f);
-            }
+            for (self.file_infos) |f| f.destroy(alloc);
             alloc.free(self.file_infos);
         }
 
-        if (!self.is_skipped) {
-            self.tmp_file.deinit(io, alloc);
+        if (self.tmp_file) |*tmp_file| {
+            tmp_file.deinit(io, alloc);
         }
     }
 
@@ -219,58 +234,46 @@ const DownloadSM = struct {
                 return;
             },
             .WaitForDowload => {
-                try utils.http.download(io, alloc, self.loc.url, self.tmp_file.path);
+                try utils.http.download(io, alloc, self.loc.url, self.tmp_file.?.path);
 
                 self.state = .WaitForExtract;
                 return;
             },
             .WaitForExtract => {
                 defer self.state = .WaitForUpdate;
+                const tmp_file = &self.tmp_file.?;
 
                 var file_infos = try std.ArrayList(*FileInfo).initCapacity(alloc, 0);
                 defer file_infos.deinit(alloc);
+                errdefer for (file_infos.items) |f| f.destroy(alloc);
 
                 if (!utils.url.isGzip(self.loc.url) and !utils.url.isTar(self.loc.url)) {
-                    const info = try alloc.create(FileInfo);
-                    info.path = try alloc.dupe(u8, self.tmp_file.path);
-                    info.filename = try alloc.dupe(u8, std.fs.path.basename(self.loc.url));
-
+                    const path = try alloc.dupe(u8, tmp_file.path);
+                    const info = try FileInfo.create(alloc, path, std.fs.path.basename(self.loc.url));
+                    errdefer info.destroy(alloc);
                     try file_infos.append(alloc, info);
-                    self.file_infos = try file_infos.toOwnedSlice(alloc);
+                } else if (utils.url.isGzip(self.loc.url)) {
+                    const decompressed_path = try std.fmt.allocPrint(alloc, "{s}-decompressed", .{tmp_file.path});
+                    utils.gzip.unarchive(io, tmp_file.path, decompressed_path) catch |err| {
+                        alloc.free(decompressed_path);
+                        return err;
+                    };
 
-                    self.state = .WaitForUpdate;
-                    return;
+                    const info = try FileInfo.create(alloc, decompressed_path, std.mem.trimEnd(u8, std.fs.path.basename(self.loc.url), ".gz"));
+                    errdefer info.destroy(alloc);
+                    try file_infos.append(alloc, info);
+                } else {
+                    // tar
+                    try utils.gzip.extractTarball(io, tmp_file.path, tmp_file.dirPath);
+
+                    for (self.loc.files) |f| {
+                        const decompressed_path = try utils.fs.toAbsolutePathAlloc(io, alloc, f, tmp_file.dirPath);
+                        const info = try FileInfo.create(alloc, decompressed_path, std.fs.path.basename(f));
+                        errdefer info.destroy(alloc);
+                        try file_infos.append(alloc, info);
+                    }
                 }
 
-                if (utils.url.isGzip(self.loc.url)) {
-                    const decompressed_path = try std.fmt.allocPrint(alloc, "{s}-decompressed", .{self.tmp_file.path});
-                    errdefer alloc.free(decompressed_path);
-
-                    try utils.gzip.unarchive(io, self.tmp_file.path, decompressed_path);
-
-                    const info = try alloc.create(FileInfo);
-                    info.path = decompressed_path;
-                    info.filename = try alloc.dupe(u8, std.mem.trimEnd(u8, std.fs.path.basename(self.loc.url), ".gz"));
-
-                    try file_infos.append(alloc, info);
-                    self.file_infos = try file_infos.toOwnedSlice(alloc);
-
-                    self.state = .WaitForUpdate;
-                    return;
-                }
-
-                // tar
-                try utils.gzip.extractTarball(io, self.tmp_file.path, self.tmp_file.dirPath);
-
-                for (self.loc.files) |f| {
-                    const decompressed_path = try utils.fs.toAbsolutePathAlloc(io, alloc, f, self.tmp_file.dirPath);
-
-                    const info = try alloc.create(FileInfo);
-                    info.path = decompressed_path;
-                    info.filename = try alloc.dupe(u8, std.fs.path.basename(f));
-
-                    try file_infos.append(alloc, info);
-                }
                 self.file_infos = try file_infos.toOwnedSlice(alloc);
             },
             .WaitForUpdate => {
