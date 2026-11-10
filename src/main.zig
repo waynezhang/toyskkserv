@@ -4,14 +4,13 @@ const pargs = @import("parg");
 const log = @import("utils/utils.zig").log;
 const version = @import("version.zig");
 const cmd = @import("cmd/cmd.zig");
-const dogmalloc = @import("dogmalloc");
 const fs = @import("utils/utils.zig").fs;
 
 pub fn main(init: std.process.Init) !void {
     // init.gpa does leak checking in safe builds.
     const alloc = switch (builtin.mode) {
         .debug, .safe => init.gpa,
-        .fast, .small => dogmalloc.allocator,
+        .fast, .small => std.heap.smp_allocator,
     };
     const io = init.io;
 
