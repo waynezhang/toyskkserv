@@ -16,9 +16,7 @@ pub fn transliterateRequest(io: std.Io, allocator: std.mem.Allocator, key: []con
     const uri = try std.Uri.parse(url);
     utils.log.debug("Request to google {f}", .{uri});
 
-    const buf_size: usize = 1024 * 1024;
-    const redirect_buffer = try allocator.alloc(u8, buf_size);
-    defer allocator.free(redirect_buffer);
+    var redirect_buffer: [8 * 1024]u8 = undefined;
 
     var response_writer = std.Io.Writer.Allocating.init(allocator);
     defer response_writer.deinit();
@@ -26,7 +24,7 @@ pub fn transliterateRequest(io: std.Io, allocator: std.mem.Allocator, key: []con
     const response = try client.fetch(.{
         .location = .{ .uri = uri },
         .method = .GET,
-        .redirect_buffer = redirect_buffer,
+        .redirect_buffer = &redirect_buffer,
         .response_writer = &response_writer.writer,
     });
 

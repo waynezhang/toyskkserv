@@ -26,7 +26,9 @@ const Context = struct {
 
 pub fn init(io: std.Io, allocator: std.mem.Allocator, context: Context) !Self {
     const dict_mgr = try allocator.create(dict.Manager);
+    errdefer allocator.destroy(dict_mgr);
     dict_mgr.* = try dict.Manager.init(io, allocator);
+    errdefer dict_mgr.deinit();
 
     const hdls = blk: {
         var hdls = try allocator.alloc(req_handlers.Handler, if (builtin.mode == .debug) 7 else 6);
@@ -59,10 +61,14 @@ pub fn init(io: std.Io, allocator: std.mem.Allocator, context: Context) !Self {
 
         break :blk hdls;
     };
+    errdefer allocator.free(hdls);
+
+    const listen_addr = try allocator.dupe(u8, context.listen_addr);
+    errdefer allocator.free(listen_addr);
 
     return .{
         .dict_mgr = dict_mgr,
-        .listen_addr = try allocator.dupe(u8, context.listen_addr),
+        .listen_addr = listen_addr,
         .dictionary_directory = try allocator.dupe(u8, context.dictionary_directory),
         .handlers = hdls,
     };
@@ -72,12 +78,12 @@ pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
     allocator.free(self.listen_addr);
     allocator.free(self.dictionary_directory);
     allocator.free(self.handlers);
+    self.dict_mgr.deinit();
     allocator.destroy(self.dict_mgr);
 }
 
 pub fn serve(self: *Self, io: std.Io, allocator: std.mem.Allocator, dicts: []dict.Location) !void {
     try self.dict_mgr.reloadLocations(dicts, self.dictionary_directory);
-    defer self.dict_mgr.deinit();
 
     const address = try utils.net.parseAddrPort(self.listen_addr);
     var server = try address.listen(io, .{ .reuse_address = true });

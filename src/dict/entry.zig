@@ -31,7 +31,11 @@ pub fn compare(a: *Entry, b: *Entry, _: ?*void) c_int {
     }
 }
 
+/// Lengths are stored as u16, so longer keys or candidates are rejected.
+pub const max_len = std.math.maxInt(u16);
+
 pub fn init(alloc: std.mem.Allocator, k: []const u8, c: []const u8) !Entry {
+    if (k.len > max_len or c.len > max_len) return error.EntryTooLong;
     const len = 4 + k.len + c.len;
     const data = try alloc.alloc(u8, len);
     var entry = Entry{ .data = data.ptr };
@@ -117,6 +121,20 @@ test "entry" {
         try std.testing.expectEqual(ent.candidateLen(), @as(usize, 14));
         try std.testing.expectEqualStrings(ent.candidate(), "test_candidate");
     }
+}
+
+test "entry too long" {
+    const alloc = std.testing.allocator;
+    const long = try alloc.alloc(u8, max_len + 1);
+    defer alloc.free(long);
+    @memset(long, 'a');
+
+    try std.testing.expectError(error.EntryTooLong, Entry.init(alloc, long, ""));
+    try std.testing.expectError(error.EntryTooLong, Entry.init(alloc, "k", long));
+
+    var ent = try Entry.init(alloc, "k", long[0..max_len]);
+    defer ent.deinit(alloc);
+    try std.testing.expectEqual(@as(usize, max_len), ent.candidate().len);
 }
 
 test "entry compare" {

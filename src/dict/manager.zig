@@ -10,11 +10,15 @@ const Self = @This();
 allocator: std.mem.Allocator,
 io: std.Io,
 tree: *btree.Btree(Entry, void) = undefined,
+/// Owns every Entry in the tree, so a reload can free them all at once
+/// instead of one by one (which fragments the heap).
+arena: std.heap.ArenaAllocator,
 
 pub fn init(io: std.Io, allocator: std.mem.Allocator) !Self {
     var manager: @This() = undefined;
     manager.allocator = allocator;
     manager.io = io;
+    manager.arena = .init(allocator);
 
     manager.tree = try allocator.create(btree.Btree(Entry, void));
     manager.tree.* = btree.Btree(Entry, void).init(0, Entry.compare, null);
@@ -23,13 +27,14 @@ pub fn init(io: std.Io, allocator: std.mem.Allocator) !Self {
 }
 
 pub fn deinit(self: *Self) void {
-    clearBtree(self.allocator, self.tree);
     self.tree.deinit();
+    self.arena.deinit();
     self.allocator.destroy(self.tree);
 }
 
 pub fn reloadLocations(self: *Self, locations: []const Location, dictionary_path: []const u8) !void {
-    clearBtree(self.allocator, self.tree);
+    self.tree.clear();
+    _ = self.arena.reset(.free_all);
 
     const files = try Location.fileList(self.io, self.allocator, locations, dictionary_path);
     defer {
@@ -151,12 +156,12 @@ test "DictManager" {
     try std.testing.expectEqualStrings("/キロ/", mgr.findCandidate(alloc, "1024"));
 }
 
-fn loadFiles(self: *const Self, filenames: []const []const u8) !void {
+fn loadFiles(self: *Self, filenames: []const []const u8) !void {
     log.info("Start loading dictionaries", .{});
 
     var loaded: i16 = 0;
     for (filenames) |filename| {
-        loadFile(self.io, self.allocator, self.tree, filename) catch |err| {
+        loadFile(self.io, self.arena.allocator(), self.allocator, self.tree, filename) catch |err| {
             log.err("Failed to open file {s} due to {}", .{ filename, err });
             continue;
         };
@@ -167,7 +172,7 @@ fn loadFiles(self: *const Self, filenames: []const []const u8) !void {
     log.info("Loaded {d}/{d} dictionaries, {d} entries", .{ loaded, filenames.len, self.tree.count() });
 }
 
-fn loadFile(io: std.Io, allocator: std.mem.Allocator, tree: *btree.Btree(Entry, void), filename: []const u8) !void {
+fn loadFile(io: std.Io, entry_alloc: std.mem.Allocator, tmp_alloc: std.mem.Allocator, tree: *btree.Btree(Entry, void), filename: []const u8) !void {
     log.debug("Processing file {s}", .{std.fs.path.basename(filename)});
 
     var line_buf: [4096]u8 = @splat(0);
@@ -177,43 +182,43 @@ fn loadFile(io: std.Io, allocator: std.mem.Allocator, tree: *btree.Btree(Entry, 
     defer ite.deinit();
 
     while (try ite.next(&conv_buf)) |pair| {
-        processLine(allocator, tree, pair.key, pair.candidate) catch |err| {
+        processLine(entry_alloc, tmp_alloc, tree, pair.key, pair.candidate) catch |err| {
             log.err("Failed to process line {s} due to {}", .{ pair.key, err });
         };
     }
 }
 
-fn processLine(allocator: std.mem.Allocator, tree: *btree.Btree(Entry, void), key: []const u8, candidate: []const u8) !void {
-    const found: Entry = try Entry.init(allocator, key, "");
-    defer found.deinit(allocator);
+/// `entry_alloc` owns the entries stored in the tree (the manager's arena);
+/// `tmp_alloc` is used for scratch buffers freed before returning.
+fn processLine(entry_alloc: std.mem.Allocator, tmp_alloc: std.mem.Allocator, tree: *btree.Btree(Entry, void), key: []const u8, candidate: []const u8) !void {
+    const found: Entry = try Entry.init(tmp_alloc, key, "");
+    defer found.deinit(tmp_alloc);
 
-    if (tree.delete(&found)) |ent| {
-        defer ent.deinit(allocator);
-
-        const new_cdd = try std.mem.concat(allocator, u8, &[_][]const u8{
+    const new_ent = if (tree.get(&found)) |ent| blk: {
+        const new_cdd = try std.mem.concat(tmp_alloc, u8, &[_][]const u8{
             ent.candidate(),
             candidate[1..],
         });
-        defer allocator.free(new_cdd);
+        defer tmp_alloc.free(new_cdd);
 
-        var new_ent = try Entry.init(allocator, key, new_cdd);
-        _ = tree.set(&new_ent);
-    } else {
-        const ent = try Entry.init(allocator, key, candidate);
-        _ = tree.set(&ent);
-    }
+        // If this fails the existing entry stays in the tree untouched.
+        break :blk try Entry.init(entry_alloc, key, new_cdd);
+    } else try Entry.init(entry_alloc, key, candidate);
+
+    // Replaces the old entry if there was one; its memory belongs to the arena.
+    _ = tree.set(&new_ent);
+    if (tree.oom()) return error.OutOfMemory;
 }
 
 test "processLine" {
     const alloc = std.testing.allocator;
+    var arena: std.heap.ArenaAllocator = .init(alloc);
+    defer arena.deinit();
     var tree = btree.Btree(Entry, void).init(0, Entry.compare, null);
-    defer {
-        clearBtree(alloc, &tree);
-        tree.deinit();
-    }
+    defer tree.deinit();
 
     {
-        try processLine(alloc, &tree, "test", "/abc/");
+        try processLine(arena.allocator(), alloc, &tree, "test", "/abc/");
 
         var found = try Entry.init(alloc, "test", "");
         defer found.deinit(alloc);
@@ -222,7 +227,7 @@ test "processLine" {
         try std.testing.expectEqualStrings("/abc/", ret.?.candidate());
     }
     {
-        try processLine(alloc, &tree, "test2", "/123/");
+        try processLine(arena.allocator(), alloc, &tree, "test2", "/123/");
 
         var found = try Entry.init(alloc, "test2", "");
         defer found.deinit(alloc);
@@ -231,7 +236,7 @@ test "processLine" {
         try std.testing.expectEqualStrings("/123/", ret.?.candidate());
     }
     {
-        try processLine(alloc, &tree, "test", "/def/");
+        try processLine(arena.allocator(), alloc, &tree, "test", "/def/");
 
         var found = try Entry.init(alloc, "test", "");
         defer found.deinit(alloc);
@@ -239,15 +244,4 @@ test "processLine" {
         const ret = tree.get(&found);
         try std.testing.expectEqualStrings("/abc/def/", ret.?.candidate());
     }
-}
-
-fn clearBtree(alloc: std.mem.Allocator, tree: *btree.Btree(Entry, void)) void {
-    while (true) {
-        if (tree.popMin()) |ent| {
-            ent.deinit(alloc);
-        } else {
-            break;
-        }
-    }
-    tree.clear();
 }
