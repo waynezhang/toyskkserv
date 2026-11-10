@@ -1,3 +1,10 @@
+## v1.0.6 (2026-11-10)
+
+### Fix
+
+- reduce memory growth on reload and fix error-path leaks ([bceb3d4](https://github.com/waynezhang/toyskkserv/commit/bceb3d41a787e509c8295e16e8f72974fc75d5f4))
+
+
 ## v1.0.5 (2026-11-10)
 
 ### Fix
