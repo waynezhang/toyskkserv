@@ -12,10 +12,6 @@
             .url = "git+https://github.com/judofyr/parg#8c4af60afdb3ad211ad12cd329c2859f8593af19",
             .hash = "parg-0.0.0-dOPWZENZAAAAyp9Lz-4zKPZ8PD7DEwUCEsiw6Y1UR_bA",
         },
-        .dogmalloc = .{
-            .url = "git+https://codeberg.org/rmehri01/dogmalloc#39c0dae9a79db055cdca2415ab1eb492ed6f9986",
-            .hash = "dogmalloc-0.0.0-v9dhXqKYAAA1eIDHs7-v2iMzvUe4BZNMmWs6YxZr0dqo",
-        },
         .btree_zig = .{
             .url = "git+https://github.com/waynezhang/btree.c-zig#7bd37ff7f73656ca321014eecbc335588a0ec69e",
             .hash = "btree_zig-0.0.1-2BG_Jso1AAAXD1qOlcSWc9D67kbun2OtIG3EvBIMc5q1",
