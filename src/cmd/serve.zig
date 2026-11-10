@@ -4,12 +4,12 @@ const Server = @import("../server/server.zig").Server;
 const config = @import("../config.zig");
 const dict = @import("../dict/dict.zig");
 
-pub fn serve(allocator: std.mem.Allocator) !void {
+pub fn serve(io: std.Io, allocator: std.mem.Allocator) !void {
     const config_files = [_][]const u8{
         "./toyskkserv.zon",
         "~/.config/toyskkserv.zon",
     };
-    var cfg = config.loadConfig(allocator) catch |err| switch (err) {
+    var cfg = config.loadConfig(io, allocator) catch |err| switch (err) {
         error.NoConfigFound => {
             log.err("No config file found in following paths.\n", .{});
             for (config_files) |p| {
@@ -35,6 +35,7 @@ pub fn serve(allocator: std.mem.Allocator) !void {
 
     log.info("Start downloading missing dictionaries", .{});
     dict.Location.downloadDicts(
+        io,
         allocator,
         cfg.dictionaries,
         cfg.dictionary_directory,
@@ -48,13 +49,13 @@ pub fn serve(allocator: std.mem.Allocator) !void {
         server.deinit(allocator);
         allocator.destroy(server);
     }
-    server.* = try Server.init(allocator, .{
+    server.* = try Server.init(io, allocator, .{
         .dictionary_directory = cfg.dictionary_directory,
         .listen_addr = cfg.listen_addr,
         .use_google = cfg.fallback_to_google,
     });
 
-    server.serve(allocator, cfg.dictionaries) catch |err| {
+    server.serve(io, allocator, cfg.dictionaries) catch |err| {
         log.err("Failed to start server due to {}", .{err});
     };
     log.info("Server exited", .{});

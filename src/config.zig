@@ -4,41 +4,67 @@ const utils = @import("utils/utils.zig");
 
 const Self = @This();
 
-dictionary_directory: []const u8 = &.{},
-listen_addr: []const u8 = &.{},
-fallback_to_google: bool = false,
-dictionaries: []dict.Location = &.{},
+/// Owns all memory of the parsed fields.
+arena: std.heap.ArenaAllocator,
 
-pub fn deinit(self: @This(), allocator: std.mem.Allocator) void {
-    std.zon.parse.free(allocator, self);
+dictionary_directory: []const u8,
+listen_addr: []const u8,
+fallback_to_google: bool,
+dictionaries: []dict.Location,
+
+/// Fields read from the ZON config file.
+const Fields = struct {
+    dictionary_directory: []const u8 = &.{},
+    listen_addr: []const u8 = &.{},
+    fallback_to_google: bool = false,
+    dictionaries: []dict.Location = &.{},
+};
+
+pub fn deinit(self: @This(), _: std.mem.Allocator) void {
+    self.arena.deinit();
 }
 
-pub fn loadConfig(alloc: std.mem.Allocator) !Self {
+pub fn loadConfig(io: std.Io, alloc: std.mem.Allocator) !Self {
     const config_files = [_][]const u8{
         "./toyskkserv.zon",
         "~/.config/toyskkserv.zon",
     };
 
-    return try parseConfig(alloc, &config_files);
+    return try parseConfig(io, alloc, &config_files);
 }
 
-fn parseConfig(allocator: std.mem.Allocator, files: []const []const u8) !Self {
+fn parseConfig(io: std.Io, allocator: std.mem.Allocator, files: []const []const u8) !Self {
     for (files) |file| {
-        const path = utils.fs.toAbsolutePathAlloc(allocator, file, null) catch {
+        const path = utils.fs.toAbsolutePathAlloc(io, allocator, file, null) catch {
             continue;
         };
         defer allocator.free(path);
 
         utils.log.debug("Found config file at {s}", .{path});
-        const txt = std.fs.cwd().readFileAllocOptions(allocator, path, std.math.maxInt(usize), null, .@"8", 0) catch {
+        const txt = std.Io.Dir.cwd().readFileAllocOptions(io, path, allocator, .unlimited, .of(u8), 0) catch {
             continue;
         };
         defer allocator.free(txt);
 
-        return try std.zon.parse.fromSlice(Self, allocator, txt, null, .{
-            .free_on_error = true,
+        var arena: std.heap.ArenaAllocator = .init(allocator);
+        errdefer arena.deinit();
+
+        var diagnostics: std.zon.parse.Diagnostics = undefined;
+        const fields = try std.zon.parse.fromSlice(Fields, .{
+            .gpa = allocator,
+            .arena = arena.allocator(),
+            .source = txt,
+            .diagnostics = &diagnostics,
             .ignore_unknown_fields = true,
         });
+
+        return .{
+            .arena = arena,
+            .dictionary_directory = fields.dictionary_directory,
+            .listen_addr = fields.listen_addr,
+            .fallback_to_google = fields.fallback_to_google,
+            .dictionaries = fields.dictionaries,
+        };
     }
 
     return error.NoConfigFound;
@@ -47,7 +73,7 @@ fn parseConfig(allocator: std.mem.Allocator, files: []const []const u8) !Self {
 test "config" {
     const alloc = std.testing.allocator;
 
-    const cfg = try parseConfig(alloc, &[_][]const u8{
+    const cfg = try parseConfig(std.testing.io, alloc, &[_][]const u8{
         "./conf/toyskkserv.zon",
     });
     defer cfg.deinit(alloc);

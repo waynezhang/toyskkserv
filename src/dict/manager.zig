@@ -8,11 +8,13 @@ const Entry = @import("entry.zig");
 const Self = @This();
 
 allocator: std.mem.Allocator,
+io: std.Io,
 tree: *btree.Btree(Entry, void) = undefined,
 
-pub fn init(allocator: std.mem.Allocator) !Self {
+pub fn init(io: std.Io, allocator: std.mem.Allocator) !Self {
     var manager: @This() = undefined;
     manager.allocator = allocator;
+    manager.io = io;
 
     manager.tree = try allocator.create(btree.Btree(Entry, void));
     manager.tree.* = btree.Btree(Entry, void).init(0, Entry.compare, null);
@@ -29,7 +31,7 @@ pub fn deinit(self: *Self) void {
 pub fn reloadLocations(self: *Self, locations: []const Location, dictionary_path: []const u8) !void {
     clearBtree(self.allocator, self.tree);
 
-    const files = try Location.fileList(self.allocator, locations, dictionary_path);
+    const files = try Location.fileList(self.io, self.allocator, locations, dictionary_path);
     defer {
         for (files) |f| {
             self.allocator.free(f);
@@ -105,16 +107,17 @@ pub fn findCompletion(self: *const Self, alloc: std.mem.Allocator, key: []const 
 
 test "DictManager" {
     const alloc = std.testing.allocator;
+    const io = std.testing.io;
 
-    const url = try std.fs.cwd().realpathAlloc(alloc, "testdata/jisyo.utf8");
+    const url = try std.Io.Dir.cwd().realPathFileAlloc(io, "testdata/jisyo.utf8", alloc);
     defer alloc.free(url);
 
     var tmp = std.testing.tmpDir(.{});
     defer tmp.cleanup();
-    const path = try tmp.dir.realpathAlloc(alloc, ".");
+    const path = try tmp.dir.realPathFileAlloc(io, ".", alloc);
     defer alloc.free(path);
 
-    var mgr = try init(alloc);
+    var mgr = try init(io, alloc);
     defer mgr.deinit();
 
     const locations: []const Location = &.{
@@ -153,7 +156,7 @@ fn loadFiles(self: *const Self, filenames: []const []const u8) !void {
 
     var loaded: i16 = 0;
     for (filenames) |filename| {
-        loadFile(self.allocator, self.tree, filename) catch |err| {
+        loadFile(self.io, self.allocator, self.tree, filename) catch |err| {
             log.err("Failed to open file {s} due to {}", .{ filename, err });
             continue;
         };
@@ -164,13 +167,13 @@ fn loadFiles(self: *const Self, filenames: []const []const u8) !void {
     log.info("Loaded {d}/{d} dictionaries, {d} entries", .{ loaded, filenames.len, self.tree.count() });
 }
 
-fn loadFile(allocator: std.mem.Allocator, tree: *btree.Btree(Entry, void), filename: []const u8) !void {
+fn loadFile(io: std.Io, allocator: std.mem.Allocator, tree: *btree.Btree(Entry, void), filename: []const u8) !void {
     log.debug("Processing file {s}", .{std.fs.path.basename(filename)});
 
-    var line_buf = [_]u8{0} ** 4096;
-    var conv_buf = [_]u8{0} ** 4096;
+    var line_buf: [4096]u8 = @splat(0);
+    var conv_buf: [4096]u8 = @splat(0);
 
-    var ite = try skk.open(filename, &line_buf);
+    var ite = try skk.open(io, filename, &line_buf);
     defer ite.deinit();
 
     while (try ite.next(&conv_buf)) |pair| {

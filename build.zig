@@ -5,7 +5,6 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
     const name = "toyskkserv";
     const deps = &[_]Dep{
-        .{ .name = "network" },
         .{ .name = "temp" },
         .{ .name = "parg" },
         .{ .name = "dogmalloc" },
@@ -16,7 +15,6 @@ pub fn build(b: *std.Build) void {
         .{
             .name = "btree_zig",
             .module = "btree_c_zig",
-            .link = "btree_zig",
         },
     };
     const test_deps = &[_]Dep{};
@@ -66,19 +64,13 @@ fn prepareExe(name: []const u8, b: *std.Build, target: std.Build.ResolvedTarget,
         });
         const mod = dep.module(mod_name);
         exe.root_module.addImport(d.name, mod);
-
-        if (d.link) |l| {
-            exe.linkLibrary(dep.artifact(l));
-        }
     }
     b.installArtifact(exe);
 
     const run_cmd = b.addRunArtifact(exe);
     run_cmd.step.dependOn(b.getInstallStep());
 
-    if (b.args) |args| {
-        run_cmd.addArgs(args);
-    }
+    run_cmd.addPassthruArgs();
 
     const run_step = b.step("run", "Run the app");
     run_step.dependOn(&run_cmd.step);
@@ -100,10 +92,6 @@ fn prepareTestExe(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std
         });
         const mod = dep.module(module);
         exe.root_module.addImport(d.name, mod);
-
-        if (d.link) |l| {
-            exe.linkLibrary(dep.artifact(l));
-        }
     }
     const run_exe_unit_tests = b.addRunArtifact(exe);
 
@@ -114,5 +102,4 @@ fn prepareTestExe(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std
 const Dep = struct {
     name: []const u8,
     module: ?[]const u8 = null,
-    link: ?[]const u8 = null,
 };

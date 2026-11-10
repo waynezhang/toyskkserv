@@ -2,7 +2,7 @@ const std = @import("std");
 const utils = @import("../utils/utils.zig");
 
 /// Caller owns the memory
-pub fn transliterateRequest(allocator: std.mem.Allocator, key: []const u8) ![]const u8 {
+pub fn transliterateRequest(io: std.Io, allocator: std.mem.Allocator, key: []const u8) ![]const u8 {
     const encoded = try utils.net.encodeQueryComponentAlloc(allocator, key);
     defer allocator.free(encoded);
 
@@ -10,7 +10,7 @@ pub fn transliterateRequest(allocator: std.mem.Allocator, key: []const u8) ![]co
     const url = try std.fmt.allocPrint(allocator, "{s}{s}", .{ base_url, encoded });
     defer allocator.free(url);
 
-    var client = std.http.Client{ .allocator = allocator };
+    var client = std.http.Client{ .allocator = allocator, .io = io };
     defer client.deinit();
 
     const uri = try std.Uri.parse(url);
@@ -98,13 +98,13 @@ fn parseResponse(allocator: std.mem.Allocator, resp: []const u8, key: []const u8
 }
 
 test "test 1+1" {
-    const resp = try transliterateRequest(std.testing.allocator, "=1+1");
+    const resp = try transliterateRequest(std.testing.io, std.testing.allocator, "=1+1");
     defer std.testing.allocator.free(resp);
     try std.testing.expectEqualStrings("/2/2=1+1/＝１＋１/", resp);
 }
 
 test "test ちば" {
-    const resp = try transliterateRequest(std.testing.allocator, "ちば");
+    const resp = try transliterateRequest(std.testing.io, std.testing.allocator, "ちば");
     defer std.testing.allocator.free(resp);
     // Google may reorder candidates, so only check the set.
     try std.testing.expect(std.mem.startsWith(u8, resp, "/"));
@@ -123,7 +123,7 @@ test "test ちば" {
 }
 
 test "test empty" {
-    const err = transliterateRequest(std.testing.allocator, "aaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+    const err = transliterateRequest(std.testing.io, std.testing.allocator, "aaaaaaaaaaaaaaaaaaaaaaaaaaaa");
     try std.testing.expectError(error.NotFound, err);
 }
 

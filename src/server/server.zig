@@ -1,9 +1,9 @@
 const std = @import("std");
 const builtin = @import("builtin");
-const network = @import("network");
 const euc_jp = @import("euc_jis_2004_zig");
 const req_handlers = @import("handlers.zig");
-const log = @import("../utils/utils.zig").log;
+const utils = @import("../utils/utils.zig");
+const log = utils.log;
 const version = @import("../version.zig");
 const dict = @import("../dict/dict.zig");
 
@@ -15,6 +15,8 @@ dict_mgr: *dict.Manager,
 listen_addr: []const u8,
 dictionary_directory: []const u8,
 handlers: []const req_handlers.Handler,
+/// Guards the dictionary: reload takes it exclusively, lookups share it.
+dict_lock: std.Io.RwLock = .init,
 
 const Context = struct {
     listen_addr: []const u8,
@@ -22,12 +24,12 @@ const Context = struct {
     use_google: bool,
 };
 
-pub fn init(allocator: std.mem.Allocator, context: Context) !Self {
+pub fn init(io: std.Io, allocator: std.mem.Allocator, context: Context) !Self {
     const dict_mgr = try allocator.create(dict.Manager);
-    dict_mgr.* = try dict.Manager.init(allocator);
+    dict_mgr.* = try dict.Manager.init(io, allocator);
 
     const hdls = blk: {
-        var hdls = try allocator.alloc(req_handlers.Handler, if (builtin.mode == .Debug) 7 else 6);
+        var hdls = try allocator.alloc(req_handlers.Handler, if (builtin.mode == .debug) 7 else 6);
         hdls[0] = req_handlers.Handler{
             .disconnect_handler = req_handlers.DisconnectHandler{},
         };
@@ -49,7 +51,7 @@ pub fn init(allocator: std.mem.Allocator, context: Context) !Self {
         hdls[5] = req_handlers.Handler{
             .custom_protocol_handler = req_handlers.CustomProtocolHandler{ .dict_mgr = dict_mgr },
         };
-        if (builtin.mode == .Debug) {
+        if (builtin.mode == .debug) {
             hdls[6] = req_handlers.Handler{
                 .exit_handler = req_handlers.ExitHandler{},
             };
@@ -73,83 +75,83 @@ pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
     allocator.destroy(self.dict_mgr);
 }
 
-pub fn serve(self: *Self, allocator: std.mem.Allocator, dicts: []dict.Location) !void {
+pub fn serve(self: *Self, io: std.Io, allocator: std.mem.Allocator, dicts: []dict.Location) !void {
     try self.dict_mgr.reloadLocations(dicts, self.dictionary_directory);
     defer self.dict_mgr.deinit();
 
-    try network.init();
-
-    const listen_addr = try allocator.dupe(u8, self.listen_addr);
-    defer allocator.free(listen_addr);
-
-    var len = std.mem.replace(u8, listen_addr, "[", "", listen_addr);
-    len += std.mem.replace(u8, listen_addr, "]", "", listen_addr);
-    const endpoint = try network.EndPoint.parse(listen_addr[0 .. listen_addr.len - len]);
-
-    var server_socket = try network.Socket.create(@as(network.AddressFamily, endpoint.address), network.Protocol.tcp);
-    try server_socket.enablePortReuse(true);
-
-    try server_socket.bind(endpoint);
-    try server_socket.listen();
-
-    var ss = try network.SocketSet.init(allocator);
-    defer ss.deinit();
-
-    const socket_event: network.SocketEvent = .{
-        .read = true,
-        .write = false,
-    };
-    try ss.add(server_socket, socket_event);
-
-    var arr: std.ArrayList(network.Socket) = try .initCapacity(allocator, 5);
-    defer arr.deinit(allocator);
+    const address = try utils.net.parseAddrPort(self.listen_addr);
+    var server = try address.listen(io, .{ .reuse_address = true });
+    defer server.deinit(io);
 
     log.info("Listening at {s}", .{self.listen_addr});
 
-    var buf = [_]u8{0} ** 4096;
+    var clients: std.Io.Group = .init;
+    defer clients.cancel(io);
+
+    // Set when the accept loop stops or a client asks the server to exit.
+    var done: std.Io.Event = .unset;
+
+    var accept_task = try io.concurrent(acceptLoop, .{ self, io, allocator, &server, &clients, &done });
+    done.waitUncancelable(io);
+    accept_task.cancel(io) catch |err| switch (err) {
+        error.Canceled => {},
+        else => return err,
+    };
+}
+
+fn acceptLoop(
+    self: *Self,
+    io: std.Io,
+    allocator: std.mem.Allocator,
+    server: *std.Io.net.Server,
+    clients: *std.Io.Group,
+    done: *std.Io.Event,
+) !void {
+    defer done.set(io);
+
+    while (true) {
+        const stream = try server.accept(io);
+        log.info("New connection from {f}", .{stream.socket.address});
+
+        clients.concurrent(io, handleClient, .{ self, io, allocator, stream, done }) catch |err| {
+            log.err("Failed to handle connection due to {}", .{err});
+            stream.close(io);
+        };
+    }
+}
+
+fn handleClient(self: *Self, io: std.Io, allocator: std.mem.Allocator, stream: std.Io.net.Stream, done: *std.Io.Event) std.Io.Cancelable!void {
+    defer stream.close(io);
+
+    var buf: [4096]u8 = @splat(0);
     var write_allocating = std.Io.Writer.Allocating.init(allocator);
     defer write_allocating.deinit();
 
     while (true) {
-        _ = try network.waitForSocketEvent(&ss, null);
-
-        if (ss.isReadyRead(server_socket)) {
-            const client_socket = try server_socket.accept();
-
-            const addr = try client_socket.getRemoteEndPoint();
-            log.info("New connection from {f}", .{addr});
-
-            try arr.append(allocator, client_socket);
-            try ss.add(client_socket, socket_event);
-        }
-
-        for (arr.items, 0..) |socket, i| {
-            if (ss.isReadyRead(socket)) {
-                self.handleMessage(allocator, socket, &buf, &write_allocating) catch |err| switch (err) {
-                    error.Exit => {
-                        return;
-                    },
-                    else => {
-                        log.info("Connection disconnected due to {}", .{err});
-                        socket.close();
-                        ss.remove(socket);
-                        _ = arr.swapRemove(i);
-                    },
-                };
-            }
-        }
+        self.handleMessage(io, allocator, stream, &buf, &write_allocating) catch |err| switch (err) {
+            error.Canceled => return error.Canceled,
+            error.Exit => {
+                done.set(io);
+                return;
+            },
+            else => {
+                log.info("Connection disconnected due to {}", .{err});
+                return;
+            },
+        };
     }
 }
 
-fn handleMessage(self: *Self, allocator: std.mem.Allocator, socket: network.Socket, buf: []u8, writer_allocating: *std.Io.Writer.Allocating) !void {
+fn handleMessage(self: *Self, io: std.Io, allocator: std.mem.Allocator, stream: std.Io.net.Stream, buf: []u8, writer_allocating: *std.Io.Writer.Allocating) !void {
     writer_allocating.clearRetainingCapacity();
 
-    const read = try socket.receive(buf);
+    var bufs = [_][]u8{buf};
+    const read = try stream.read(io, &bufs);
     if (read == 0) {
         return error.ConnectionDisconnected;
     }
 
-    var conv_buf = [_]u8{0} ** 4096;
+    var conv_buf: [4096]u8 = @splat(0);
     const line = try euc_jp.convertEucJpToUtf8(std.mem.trim(u8, buf[0..read], " \n"), &conv_buf);
 
     log.info("Request: {s}", .{line});
@@ -157,13 +159,23 @@ fn handleMessage(self: *Self, allocator: std.mem.Allocator, socket: network.Sock
         return;
     }
 
-    const cmd = line[0] - '0';
+    const cmd = line[0] -% '0';
     if (cmd >= self.handlers.len) {
         log.info("Invalid request: {s}", .{line});
         return;
     }
 
-    try self.handlers[cmd].handle(allocator, &writer_allocating.writer, line[1..]);
+    {
+        // Only the custom protocol handler (reload) changes the dictionary.
+        const exclusive = self.handlers[cmd] == .custom_protocol_handler;
+        if (exclusive) try self.dict_lock.lock(io) else try self.dict_lock.lockShared(io);
+        defer if (exclusive) self.dict_lock.unlock(io) else self.dict_lock.unlockShared(io);
+
+        try self.handlers[cmd].handle(io, allocator, &writer_allocating.writer, line[1..]);
+    }
     try writer_allocating.writer.writeByte('\n');
-    _ = try socket.send(writer_allocating.written());
+
+    var writer = stream.writer(io, &.{});
+    try writer.interface.writeAll(writer_allocating.written());
+    try writer.interface.flush();
 }
