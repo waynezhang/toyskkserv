@@ -1,3 +1,10 @@
+## v1.0.7 (2026-11-10)
+
+### Refactor
+
+- replace dogmalloc with std.heap.smp_allocator ([7ac5811](https://github.com/waynezhang/toyskkserv/commit/7ac58118002be18dd1ec90659c2b0a8c0775b0a1))
+
+
 ## v1.0.6 (2026-11-10)
 
 ### Fix
