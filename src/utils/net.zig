@@ -1,23 +1,24 @@
 const std = @import("std");
-const net = std.net;
+const net = std.Io.net;
 
 const testing = @import("std").testing;
 
 /// Send message to TCP port
-pub fn sendTCPMessage(host: []const u8, message: []const u8) !void {
+pub fn sendTCPMessage(io: std.Io, host: []const u8, message: []const u8) !void {
     const addr = try parseAddrPort(host);
 
-    const stream = try net.tcpConnectToAddress(addr);
-    defer stream.close();
+    const stream = try addr.connect(io, .{ .mode = .stream, .protocol = .tcp });
+    defer stream.close(io);
 
-    var writer = stream.writer(&.{});
-    _ = try writer.interface.write(message);
+    var writer = stream.writer(io, &.{});
+    try writer.interface.writeAll(message);
+    try writer.interface.flush();
 }
 
 /// Parses an address:port string supporting both IPv4 and IPv6.
 /// For IPv4: "192.168.1.1:8080" or ":8080" (uses 127.0.0.1)
 /// For IPv6: "[::1]:8080" (address in brackets to disambiguate from port separator)
-pub fn parseAddrPort(str: []const u8) !net.Address {
+pub fn parseAddrPort(str: []const u8) !net.IpAddress {
     const localhost = "127.0.0.1";
 
     // Check if this is an IPv6 address (surrounded by square brackets)
@@ -25,7 +26,7 @@ pub fn parseAddrPort(str: []const u8) !net.Address {
         // Find the closing bracket
         const closing_bracket = std.mem.indexOf(u8, str, "]");
         if (closing_bracket == null) {
-            return net.IPv6ParseError.Incomplete;
+            return error.Incomplete;
         }
 
         // Extract the IPv6 address without brackets
@@ -33,7 +34,7 @@ pub fn parseAddrPort(str: []const u8) !net.Address {
 
         // Make sure there's a colon after the closing bracket for the port
         if (closing_bracket.? + 1 >= str.len or str[closing_bracket.? + 1] != ':') {
-            return net.IPv6ParseError.Incomplete;
+            return error.Incomplete;
         }
 
         // Extract the port part after ]:
@@ -42,12 +43,12 @@ pub fn parseAddrPort(str: []const u8) !net.Address {
             return error.InvalidPort;
         };
 
-        return net.Address.parseIp6(ipv6_addr, port);
+        return .{ .ip6 = try net.Ip6Address.parse(ipv6_addr, port) };
     } else {
         // Handle IPv4 addresses
         const colon_idx = std.mem.indexOf(u8, str, ":");
         if (colon_idx == null) {
-            return net.IPv4ParseError.Incomplete;
+            return error.Incomplete;
         }
 
         const ip_part = if (colon_idx.? == 0)
@@ -61,7 +62,7 @@ pub fn parseAddrPort(str: []const u8) !net.Address {
             return error.InvalidPort;
         };
 
-        return net.Address.parseIp4(ip_part, port);
+        return .{ .ip4 = try net.Ip4Address.parse(ip_part, port) };
     }
 }
 
@@ -85,11 +86,11 @@ test "parseAddrPort" {
     }
     {
         const err = parseAddrPort("300.168.1.1:8080");
-        try testing.expectError(net.IPv4ParseError.Overflow, err);
+        try testing.expectError(error.Overflow, err);
     }
     {
         const err = parseAddrPort("invalid");
-        try testing.expectError(net.IPv4ParseError.Incomplete, err);
+        try testing.expectError(error.Incomplete, err);
     }
 
     // IPv6 tests
@@ -105,7 +106,7 @@ test "parseAddrPort" {
     }
     {
         const err = parseAddrPort("[::1]");
-        try testing.expectError(net.IPv6ParseError.Incomplete, err);
+        try testing.expectError(error.Incomplete, err);
     }
     {
         const err = parseAddrPort("[::1]:invalid");
@@ -113,7 +114,7 @@ test "parseAddrPort" {
     }
     {
         const err = parseAddrPort("[invalid]:8080");
-        try testing.expectError(error.InvalidCharacter, err);
+        try testing.expectError(error.ParseFailed, err);
     }
 }
 

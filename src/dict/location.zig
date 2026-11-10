@@ -7,21 +7,21 @@ const Self = @This();
 url: []const u8 = &.{},
 files: []const []const u8 = &.{},
 
-pub fn fileList(alloc: std.mem.Allocator, locations: []const Self, base_path: []const u8) ![]const []const u8 {
+pub fn fileList(io: std.Io, alloc: std.mem.Allocator, locations: []const Self, base_path: []const u8) ![]const []const u8 {
     var arr = try std.ArrayList([]const u8).initCapacity(alloc, 0);
     defer arr.deinit(alloc);
 
     for (locations) |loc| {
         if (utils.url.isGzip(loc.url)) {
-            try arr.append(alloc, try utils.fs.toAbsolutePathAlloc(alloc, std.mem.trimRight(u8, std.fs.path.basename(loc.url), ".gz"), base_path));
+            try arr.append(alloc, try utils.fs.toAbsolutePathAlloc(io, alloc, std.mem.trimEnd(u8, std.fs.path.basename(loc.url), ".gz"), base_path));
         } else if (utils.url.isTar(loc.url)) {
             for (loc.files) |f| {
-                try arr.append(alloc, try utils.fs.toAbsolutePathAlloc(alloc, std.fs.path.basename(f), base_path));
+                try arr.append(alloc, try utils.fs.toAbsolutePathAlloc(io, alloc, std.fs.path.basename(f), base_path));
             }
         } else if (utils.url.isHttpUrl(loc.url)) {
-            try arr.append(alloc, try utils.fs.toAbsolutePathAlloc(alloc, std.fs.path.basename(loc.url), base_path));
+            try arr.append(alloc, try utils.fs.toAbsolutePathAlloc(io, alloc, std.fs.path.basename(loc.url), base_path));
         } else {
-            try arr.append(alloc, try utils.fs.toAbsolutePathAlloc(alloc, loc.url, base_path));
+            try arr.append(alloc, try utils.fs.toAbsolutePathAlloc(io, alloc, loc.url, base_path));
         }
     }
 
@@ -30,8 +30,9 @@ pub fn fileList(alloc: std.mem.Allocator, locations: []const Self, base_path: []
 
 test "fileList" {
     const alloc = std.testing.allocator;
+    const io = std.testing.io;
 
-    const cwd = try std.fs.cwd().realpathAlloc(alloc, ".");
+    const cwd = try std.Io.Dir.cwd().realPathFileAlloc(io, ".", alloc);
     defer alloc.free(cwd);
 
     const home = try utils.fs.expandTildeAlloc(alloc, "~");
@@ -47,7 +48,7 @@ test "fileList" {
         .{ .url = "http://abc.com/test07.tar.gz", .files = &.{ "test07-01.txt", "test07-02.txt" } },
     };
 
-    const translated = try Self.fileList(alloc, locations, cwd);
+    const translated = try Self.fileList(io, alloc, locations, cwd);
     defer {
         for (translated) |t| alloc.free(t);
         alloc.free(translated);
@@ -94,15 +95,16 @@ test "fileList" {
 }
 
 pub fn downloadDicts(
+    io: std.Io,
     alloc: std.mem.Allocator,
     locations: []const Self,
     base_path: []const u8,
     force_download: bool,
 ) !void {
-    const abs_base_path = try utils.fs.toAbsolutePathAlloc(alloc, base_path, null);
+    const abs_base_path = try utils.fs.toAbsolutePathAlloc(io, alloc, base_path, null);
     defer alloc.free(abs_base_path);
 
-    std.fs.cwd().makeDir(abs_base_path) catch |err| switch (err) {
+    std.Io.Dir.cwd().createDir(io, abs_base_path, .default_dir) catch |err| switch (err) {
         error.PathAlreadyExists => {},
         else => {
             return err;
@@ -112,21 +114,22 @@ pub fn downloadDicts(
     for (locations) |loc| {
         var dsm = DownloadSM.init(loc, base_path, force_download);
         while (dsm.state != .Finsihed) {
-            dsm.do(alloc) catch {
+            dsm.do(io, alloc) catch {
                 log.err("Failed to download {s}", .{loc.url});
                 break;
             };
         }
-        dsm.deinit(alloc);
+        dsm.deinit(io, alloc);
     }
 }
 
 test "downloadDicts" {
     const alloc = std.testing.allocator;
+    const io = std.testing.io;
 
     var tmp = std.testing.tmpDir(.{});
     defer tmp.cleanup();
-    const path = try tmp.dir.realpathAlloc(alloc, ".");
+    const path = try tmp.dir.realPathFileAlloc(io, ".", alloc);
     defer alloc.free(path);
 
     const locations: []const Self = &.{
@@ -134,7 +137,7 @@ test "downloadDicts" {
         .{ .url = "https://skk-dev.github.io/dict/SKK-JISYO.itaiji.JIS3_4.gz", .files = &.{} },
         .{ .url = "https://skk-dev.github.io/dict/SKK-JISYO.edict.tar.gz", .files = &.{"SKK-JISYO.edict"} },
     };
-    try downloadDicts(alloc, locations, path, false);
+    try downloadDicts(io, alloc, locations, path, false);
 
     for (&[_][]const u8{
         "SKK-JISYO.emoji.utf8",
@@ -144,7 +147,7 @@ test "downloadDicts" {
         const p = try std.fs.path.join(alloc, &[_][]const u8{ path, file });
         defer alloc.free(p);
 
-        try std.testing.expect(utils.fs.isExisting(p));
+        try std.testing.expect(utils.fs.isExisting(io, p));
     }
 }
 
@@ -186,7 +189,7 @@ const DownloadSM = struct {
         };
     }
 
-    fn deinit(self: *DownloadSM, alloc: std.mem.Allocator) void {
+    fn deinit(self: *DownloadSM, io: std.Io, alloc: std.mem.Allocator) void {
         if (self.file_infos.len > 0) {
             for (self.file_infos) |f| {
                 alloc.free(f.filename);
@@ -197,14 +200,14 @@ const DownloadSM = struct {
         }
 
         if (!self.is_skipped) {
-            self.tmp_file.deinit(alloc);
+            self.tmp_file.deinit(io, alloc);
         }
     }
 
-    fn do(self: *DownloadSM, alloc: std.mem.Allocator) !void {
+    fn do(self: *DownloadSM, io: std.Io, alloc: std.mem.Allocator) !void {
         switch (self.state) {
             .NotStarted => {
-                const skip = try shouldSkip(alloc, self.loc, self.base_path, self.force_download);
+                const skip = try shouldSkip(io, alloc, self.loc, self.base_path, self.force_download);
                 if (skip) {
                     self.is_skipped = true;
                     self.state = .WaitForNotification;
@@ -212,11 +215,11 @@ const DownloadSM = struct {
                 }
                 defer self.state = .WaitForDowload;
 
-                self.tmp_file = try utils.fs.GetTmpFile(alloc);
+                self.tmp_file = try utils.fs.GetTmpFile(io, alloc);
                 return;
             },
             .WaitForDowload => {
-                try utils.http.download(alloc, self.loc.url, self.tmp_file.path);
+                try utils.http.download(io, alloc, self.loc.url, self.tmp_file.path);
 
                 self.state = .WaitForExtract;
                 return;
@@ -243,11 +246,11 @@ const DownloadSM = struct {
                     const decompressed_path = try std.fmt.allocPrint(alloc, "{s}-decompressed", .{self.tmp_file.path});
                     errdefer alloc.free(decompressed_path);
 
-                    try utils.gzip.unarchive(self.tmp_file.path, decompressed_path);
+                    try utils.gzip.unarchive(io, self.tmp_file.path, decompressed_path);
 
                     const info = try alloc.create(FileInfo);
                     info.path = decompressed_path;
-                    info.filename = try alloc.dupe(u8, std.mem.trimRight(u8, std.fs.path.basename(self.loc.url), ".gz"));
+                    info.filename = try alloc.dupe(u8, std.mem.trimEnd(u8, std.fs.path.basename(self.loc.url), ".gz"));
 
                     try file_infos.append(alloc, info);
                     self.file_infos = try file_infos.toOwnedSlice(alloc);
@@ -257,10 +260,10 @@ const DownloadSM = struct {
                 }
 
                 // tar
-                try utils.gzip.extractTarball(self.tmp_file.path, self.tmp_file.dirPath);
+                try utils.gzip.extractTarball(io, self.tmp_file.path, self.tmp_file.dirPath);
 
                 for (self.loc.files) |f| {
-                    const decompressed_path = try utils.fs.toAbsolutePathAlloc(alloc, f, self.tmp_file.dirPath);
+                    const decompressed_path = try utils.fs.toAbsolutePathAlloc(io, alloc, f, self.tmp_file.dirPath);
 
                     const info = try alloc.create(FileInfo);
                     info.path = decompressed_path;
@@ -274,12 +277,12 @@ const DownloadSM = struct {
                 defer self.state = .WaitForNotification;
 
                 for (self.file_infos) |f| {
-                    const dst_file = try utils.fs.toAbsolutePathAlloc(alloc, f.filename, self.base_path);
+                    const dst_file = try utils.fs.toAbsolutePathAlloc(io, alloc, f.filename, self.base_path);
                     defer alloc.free(dst_file);
 
-                    const updated = utils.fs.isDifferent(alloc, f.path, dst_file);
+                    const updated = utils.fs.isDifferent(io, alloc, f.path, dst_file);
                     if (updated) {
-                        if (std.fs.renameAbsolute(f.path, dst_file)) {
+                        if (std.Io.Dir.renameAbsolute(f.path, dst_file, io)) {
                             f.result = .Updated;
                         } else |_| {
                             f.result = .Failed;
@@ -311,7 +314,7 @@ const DownloadSM = struct {
     }
 };
 
-fn shouldSkip(alloc: std.mem.Allocator, loc: Self, base_path: []const u8, force_download: bool) !bool {
+fn shouldSkip(io: std.Io, alloc: std.mem.Allocator, loc: Self, base_path: []const u8, force_download: bool) !bool {
     if (!utils.url.isHttpUrl(loc.url)) {
         return true;
     }
@@ -323,18 +326,18 @@ fn shouldSkip(alloc: std.mem.Allocator, loc: Self, base_path: []const u8, force_
     if (utils.url.isGzip(loc.url)) {
         const path = try std.fs.path.join(alloc, &[_][]const u8{
             base_path,
-            std.mem.trimRight(u8, std.fs.path.basename(loc.url), ".gz"),
+            std.mem.trimEnd(u8, std.fs.path.basename(loc.url), ".gz"),
         });
         defer alloc.free(path);
-        return utils.fs.isExisting(path);
+        return utils.fs.isExisting(io, path);
     }
 
     if (utils.url.isTar(loc.url)) {
         for (loc.files) |f| {
-            const path = try utils.fs.toAbsolutePathAlloc(alloc, std.fs.path.basename(f), base_path);
+            const path = try utils.fs.toAbsolutePathAlloc(io, alloc, std.fs.path.basename(f), base_path);
             defer alloc.free(path);
 
-            if (!utils.fs.isExisting(path)) {
+            if (!utils.fs.isExisting(io, path)) {
                 return false;
             }
         }
@@ -343,41 +346,42 @@ fn shouldSkip(alloc: std.mem.Allocator, loc: Self, base_path: []const u8, force_
 
     const path = try std.fs.path.join(alloc, &[_][]const u8{ base_path, std.fs.path.basename(loc.url) });
     defer alloc.free(path);
-    return utils.fs.isExisting(path);
+    return utils.fs.isExisting(io, path);
 }
 
 test "shouldSkip" {
     const alloc = std.testing.allocator;
+    const io = std.testing.io;
     {
         const loc: Self = .{ .url = "/tmp/filepath", .files = &.{} };
-        try std.testing.expect(try shouldSkip(alloc, loc, ".", true));
-        try std.testing.expect(try shouldSkip(alloc, loc, ".", false));
+        try std.testing.expect(try shouldSkip(io, alloc, loc, ".", true));
+        try std.testing.expect(try shouldSkip(io, alloc, loc, ".", false));
     }
     {
         const loc: Self = .{ .url = "https://abc.com/path/testdata/jisyo.utf8", .files = &.{} };
-        try std.testing.expect(try shouldSkip(alloc, loc, "testdata", false));
-        try std.testing.expect(!try shouldSkip(alloc, loc, "testdata", true));
+        try std.testing.expect(try shouldSkip(io, alloc, loc, "testdata", false));
+        try std.testing.expect(!try shouldSkip(io, alloc, loc, "testdata", true));
     }
     {
         const loc: Self = .{ .url = "https://abc.com/path/testdata/jisyo-notexisting.utf8", .files = &.{} };
-        try std.testing.expect(!try shouldSkip(alloc, loc, "testdata", false));
+        try std.testing.expect(!try shouldSkip(io, alloc, loc, "testdata", false));
     }
     {
         const loc: Self = .{ .url = "https://abc.com/path/testdata/jisyo.utf8.gz", .files = &.{} };
-        try std.testing.expect(try shouldSkip(alloc, loc, "testdata", false));
-        try std.testing.expect(!try shouldSkip(alloc, loc, "testdata", true));
+        try std.testing.expect(try shouldSkip(io, alloc, loc, "testdata", false));
+        try std.testing.expect(!try shouldSkip(io, alloc, loc, "testdata", true));
     }
     {
         const loc: Self = .{ .url = "https://abc.com/path/testdata/jisyo-notexisting.utf8.gz", .files = &.{} };
-        try std.testing.expect(!try shouldSkip(alloc, loc, "testdata", false));
+        try std.testing.expect(!try shouldSkip(io, alloc, loc, "testdata", false));
     }
     {
         const loc: Self = .{ .url = "https://abc.com/path/testdata/somefile.tar.gz", .files = &.{"jisyo.utf8"} };
-        try std.testing.expect(try shouldSkip(alloc, loc, "testdata", false));
-        try std.testing.expect(!try shouldSkip(alloc, loc, "testdata", true));
+        try std.testing.expect(try shouldSkip(io, alloc, loc, "testdata", false));
+        try std.testing.expect(!try shouldSkip(io, alloc, loc, "testdata", true));
     }
     {
         const loc: Self = .{ .url = "https://abc.com/path/testdata/somefile.tar.gz", .files = &.{"jisyo.utf8,notexisting.utf8"} };
-        try std.testing.expect(!try shouldSkip(alloc, loc, "testdata", false));
+        try std.testing.expect(!try shouldSkip(io, alloc, loc, "testdata", false));
     }
 }

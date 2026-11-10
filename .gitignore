@@ -17,3 +17,4 @@ toyskkserv.zon
 # Added by goreleaser init:
 dist/
 .intentionally-empty-file.o
+zig-pkg/

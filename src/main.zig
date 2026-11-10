@@ -5,26 +5,23 @@ const log = @import("utils/utils.zig").log;
 const version = @import("version.zig");
 const cmd = @import("cmd/cmd.zig");
 const dogmalloc = @import("dogmalloc");
+const fs = @import("utils/utils.zig").fs;
 
-var debug_allocator: std.heap.DebugAllocator(.{}) = .init;
-
-pub fn main() !void {
-    const alloc, const is_debug = alloc: {
-        break :alloc switch (builtin.mode) {
-            .Debug, .ReleaseSafe => .{ debug_allocator.allocator(), true },
-            .ReleaseFast, .ReleaseSmall => .{ dogmalloc.allocator, false },
-        };
+pub fn main(init: std.process.Init) !void {
+    // init.gpa does leak checking in safe builds.
+    const alloc = switch (builtin.mode) {
+        .debug, .safe => init.gpa,
+        .fast, .small => dogmalloc.allocator,
     };
-    defer if (is_debug) {
-        std.debug.assert(debug_allocator.deinit() == .ok);
-    };
+    const io = init.io;
 
-    log.init();
+    log.init(io);
+    fs.home_dir = init.environ_map.get("HOME");
 
     var verbose = false;
     var cmd_str: ?[]const u8 = null;
 
-    var p = try pargs.parseProcess(alloc, .{});
+    var p = try pargs.parseProcess(init, .{});
     defer p.deinit();
     _ = p.nextValue(); // skip executable name
 
@@ -48,18 +45,18 @@ pub fn main() !void {
     if (verbose) log.setLevel(.debug);
 
     const fallback = cmd_str orelse "help";
-    runCmd(fallback, alloc) catch |err| {
+    runCmd(fallback, io, alloc) catch |err| {
         log.err("Failed to {s} due to {s}", .{ fallback, @errorName(err) });
     };
 }
 
-fn runCmd(c: []const u8, alloc: std.mem.Allocator) !void {
+fn runCmd(c: []const u8, io: std.Io, alloc: std.mem.Allocator) !void {
     if (std.mem.eql(u8, c, "serve")) {
-        try cmd.serve(alloc);
+        try cmd.serve(io, alloc);
     } else if (std.mem.eql(u8, c, "update")) {
-        try cmd.update(alloc);
+        try cmd.update(io, alloc);
     } else if (std.mem.eql(u8, c, "reload")) {
-        try cmd.reload(alloc);
+        try cmd.reload(io, alloc);
     } else if (std.mem.eql(u8, c, "version")) {
         showVersion();
     } else {

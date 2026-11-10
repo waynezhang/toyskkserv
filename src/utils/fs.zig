@@ -1,26 +1,39 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const temp = @import("temp");
-const require = @import("protest").require;
+
+/// Home directory, set once at startup from the HOME environment variable.
+pub var home_dir: ?[]const u8 = null;
+
+fn homeDir() ![]const u8 {
+    if (home_dir) |home| return home;
+    if (builtin.is_test) {
+        if (std.testing.environ.getPosix("HOME")) |home| return home;
+    }
+    return error.EnvironmentVariableMissing;
+}
 
 pub const TmpFile = struct {
     path: []const u8,
-    dirPath: []const u8,
+    dirPath: [:0]const u8,
     tmpDir: temp.TempDir,
 
-    pub fn deinit(self: *TmpFile, alloc: std.mem.Allocator) void {
+    pub fn deinit(self: *TmpFile, io: std.Io, alloc: std.mem.Allocator) void {
         alloc.free(self.path);
         alloc.free(self.dirPath);
-        self.tmpDir.deinit();
+        self.tmpDir.deinit(io);
     }
 };
 
-pub fn GetTmpFile(alloc: std.mem.Allocator) !TmpFile {
-    var tmp_dir = try temp.create_dir(alloc, "toyskkserv-tmp-*");
+pub fn GetTmpFile(io: std.Io, alloc: std.mem.Allocator) !TmpFile {
+    var tmp_dir = try temp.create_dir(alloc, io, "toyskkserv-tmp-*");
+    errdefer tmp_dir.deinit(io);
 
-    var dir = try tmp_dir.open(.{});
-    defer dir.close();
+    var dir = try tmp_dir.open(io, .{});
+    defer dir.close(io);
 
-    const dir_path = try dir.realpathAlloc(alloc, ".");
+    const dir_path = try dir.realPathFileAlloc(io, ".", alloc);
+    errdefer alloc.free(dir_path);
 
     const path = try std.fs.path.join(alloc, &[_][]const u8{
         dir_path,
@@ -34,16 +47,17 @@ pub fn GetTmpFile(alloc: std.mem.Allocator) !TmpFile {
 }
 
 /// Check if a file or directory is existing or not.
-pub fn isExisting(path: []const u8) bool {
-    std.fs.cwd().access(path, .{}) catch {
+pub fn isExisting(io: std.Io, path: []const u8) bool {
+    std.Io.Dir.cwd().access(io, path, .{}) catch {
         return false;
     };
     return true;
 }
 
 test "isFileExisting" {
-    try std.testing.expect(isExisting("testdata/test_file"));
-    try std.testing.expect(!isExisting("testdata/non_existing_file"));
+    const io = std.testing.io;
+    try std.testing.expect(isExisting(io, "testdata/test_file"));
+    try std.testing.expect(!isExisting(io, "testdata/non_existing_file"));
 }
 
 /// Expand tidle to home directory
@@ -52,14 +66,8 @@ pub fn expandTildeAlloc(allocator: std.mem.Allocator, path: []const u8) ![]u8 {
         return try allocator.dupe(u8, path);
     }
 
-    const home_dir = if (std.process.getEnvVarOwned(allocator, "HOME")) |home|
-        home
-    else |err|
-        return err;
-    defer allocator.free(home_dir);
-
     return try std.fs.path.join(allocator, &[_][]const u8{
-        home_dir, path[1..],
+        try homeDir(), path[1..],
     });
 }
 
@@ -75,8 +83,7 @@ test "expandTildeAlloc" {
         const path = try expandTildeAlloc(alloc, "~/test.txt");
         defer alloc.free(path);
 
-        const home = try std.process.getEnvVarOwned(alloc, "HOME");
-        defer alloc.free(home);
+        const home = try homeDir();
 
         const expected = try std.fs.path.join(alloc, &[_][]const u8{
             home, "test.txt",
@@ -88,7 +95,7 @@ test "expandTildeAlloc" {
 }
 
 /// Resolve a file path to absolute path
-pub fn toAbsolutePathAlloc(alloc: std.mem.Allocator, path: []const u8, base_path: ?[]const u8) ![]const u8 {
+pub fn toAbsolutePathAlloc(io: std.Io, alloc: std.mem.Allocator, path: []const u8, base_path: ?[]const u8) ![]const u8 {
     if (std.fs.path.isAbsolute(path)) {
         return alloc.dupe(u8, path);
     }
@@ -99,10 +106,10 @@ pub fn toAbsolutePathAlloc(alloc: std.mem.Allocator, path: []const u8, base_path
     const expanded_base = try expandTildeAlloc(alloc, base_path orelse "./");
     defer alloc.free(expanded_base);
 
-    const absolute_dir = try std.fs.cwd().realpathAlloc(alloc, expanded_base);
+    const absolute_dir = try std.Io.Dir.cwd().realPathFileAlloc(io, expanded_base, alloc);
     defer alloc.free(absolute_dir);
 
-    return try std.fs.path.resolve(alloc, &[_][]const u8{
+    return try std.fs.path.resolveAlloc(alloc, &[_][]const u8{
         absolute_dir,
         expanded_path,
     });
@@ -110,21 +117,21 @@ pub fn toAbsolutePathAlloc(alloc: std.mem.Allocator, path: []const u8, base_path
 
 test "toAbsolutePathAlloc" {
     const alloc = std.testing.allocator;
+    const io = std.testing.io;
 
-    const cwd = try std.fs.cwd().realpathAlloc(alloc, ".");
+    const cwd = try std.Io.Dir.cwd().realPathFileAlloc(io, ".", alloc);
     defer alloc.free(cwd);
 
-    const home = try std.process.getEnvVarOwned(alloc, "HOME");
-    defer alloc.free(home);
+    const home = try homeDir();
 
     {
-        const p = try toAbsolutePathAlloc(alloc, "/tmp/test.txt", cwd);
+        const p = try toAbsolutePathAlloc(io, alloc, "/tmp/test.txt", cwd);
         defer alloc.free(p);
 
         try std.testing.expectEqualStrings("/tmp/test.txt", p);
     }
     {
-        const p = try toAbsolutePathAlloc(alloc, "test.txt", cwd);
+        const p = try toAbsolutePathAlloc(io, alloc, "test.txt", cwd);
         defer alloc.free(p);
 
         const expected = try std.fs.path.join(alloc, &[_][]const u8{
@@ -136,7 +143,7 @@ test "toAbsolutePathAlloc" {
         try std.testing.expectEqualStrings(expected, p);
     }
     {
-        const p = try toAbsolutePathAlloc(alloc, "~/test.txt", cwd);
+        const p = try toAbsolutePathAlloc(io, alloc, "~/test.txt", cwd);
         defer alloc.free(p);
 
         const expected = try std.fs.path.join(alloc, &[_][]const u8{
@@ -148,7 +155,7 @@ test "toAbsolutePathAlloc" {
         try std.testing.expectEqualStrings(expected, p);
     }
     {
-        const p = try toAbsolutePathAlloc(alloc, "test.txt", "~");
+        const p = try toAbsolutePathAlloc(io, alloc, "test.txt", "~");
         defer alloc.free(p);
 
         const expected = try std.fs.path.join(alloc, &[_][]const u8{
@@ -162,17 +169,17 @@ test "toAbsolutePathAlloc" {
 }
 
 /// Calculate sha256 sum of a file. The caller owns the memory.
-pub fn sha256Alloc(alloc: std.mem.Allocator, path: []const u8) ![]const u8 {
-    const fullpath = try toAbsolutePathAlloc(alloc, path, ".");
+pub fn sha256Alloc(io: std.Io, alloc: std.mem.Allocator, path: []const u8) ![]const u8 {
+    const fullpath = try toAbsolutePathAlloc(io, alloc, path, ".");
     defer alloc.free(fullpath);
 
-    const file = try std.fs.cwd().openFile(fullpath, .{});
-    defer file.close();
+    const file = try std.Io.Dir.cwd().openFile(io, fullpath, .{});
+    defer file.close(io);
 
     var hash = std.crypto.hash.sha2.Sha256.init(.{});
 
     var reader_buffer: [8192]u8 = undefined;
-    var reader = file.reader(&reader_buffer);
+    var reader = file.reader(io, &reader_buffer);
 
     var buffer: [8192]u8 = undefined;
     while (true) {
@@ -194,18 +201,18 @@ pub fn sha256Alloc(alloc: std.mem.Allocator, path: []const u8) ![]const u8 {
 test "sha256Alloc" {
     const expected = "bff459dcf3b39fbd2e38a9b9e80b1ad87ed47331941ac86d9770db307ba4b282";
 
-    const sha256sum = try sha256Alloc(std.testing.allocator, "testdata/test_file");
+    const sha256sum = try sha256Alloc(std.testing.io, std.testing.allocator, "testdata/test_file");
     defer std.testing.allocator.free(sha256sum);
 
     try std.testing.expectEqualStrings(expected, sha256sum);
 }
 
 /// Compare two files
-pub fn isDifferent(alloc: std.mem.Allocator, path_a: []const u8, path_b: []const u8) bool {
-    const checksum_a = sha256Alloc(alloc, path_a) catch "";
+pub fn isDifferent(io: std.Io, alloc: std.mem.Allocator, path_a: []const u8, path_b: []const u8) bool {
+    const checksum_a = sha256Alloc(io, alloc, path_a) catch "";
     defer alloc.free(checksum_a);
 
-    const checksum_b = sha256Alloc(alloc, path_b) catch "";
+    const checksum_b = sha256Alloc(io, alloc, path_b) catch "";
     defer alloc.free(checksum_b);
 
     return !std.mem.eql(u8, checksum_a, checksum_b);
@@ -213,9 +220,10 @@ pub fn isDifferent(alloc: std.mem.Allocator, path_a: []const u8, path_b: []const
 
 test "isDifferent" {
     const alloc = std.testing.allocator;
+    const io = std.testing.io;
 
-    try std.testing.expect(!isDifferent(alloc, "testdata/test_file", "testdata/test_file"));
-    try std.testing.expect(!isDifferent(alloc, "", ""));
-    try std.testing.expect(isDifferent(alloc, "testdata/test_file", ""));
-    try std.testing.expect(isDifferent(alloc, "testdata/test_file", "testdata/test_file2"));
+    try std.testing.expect(!isDifferent(io, alloc, "testdata/test_file", "testdata/test_file"));
+    try std.testing.expect(!isDifferent(io, alloc, "", ""));
+    try std.testing.expect(isDifferent(io, alloc, "testdata/test_file", ""));
+    try std.testing.expect(isDifferent(io, alloc, "testdata/test_file", "testdata/test_file2"));
 }

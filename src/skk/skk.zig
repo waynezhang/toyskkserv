@@ -18,8 +18,9 @@ fn IteratorLine(comptime _: usize) type {
     return struct {
         encoding: Encoding,
 
-        file: std.fs.File,
-        reader: std.fs.File.Reader,
+        io: std.Io,
+        file: std.Io.File,
+        reader: std.Io.File.Reader,
 
         pub fn next(self: *Iterator, convert_buf: []u8) !?Pair {
             while (true) {
@@ -50,20 +51,21 @@ fn IteratorLine(comptime _: usize) type {
         }
 
         pub fn deinit(self: *Iterator) void {
-            self.file.close();
+            self.file.close(self.io);
         }
     };
 }
 
-pub fn open(filepath: []const u8, line_buffer: []u8) !Iterator {
+pub fn open(io: std.Io, filepath: []const u8, line_buffer: []u8) !Iterator {
     const encoding: Encoding = if (std.mem.endsWith(u8, filepath, ".utf8")) .utf8 else .undecided;
 
-    const file = try std.fs.cwd().openFile(filepath, .{ .mode = .read_only });
+    const file = try std.Io.Dir.cwd().openFile(io, filepath, .{ .mode = .read_only });
 
     return .{
+        .io = io,
         .encoding = encoding,
         .file = file,
-        .reader = file.reader(line_buffer),
+        .reader = file.reader(io, line_buffer),
     };
 }
 
@@ -80,10 +82,10 @@ test "skk utf-8 with header" {
         map.deinit();
     }
 
-    var buf = [_]u8{0} ** 4096;
-    var conv_buf = [_]u8{0} ** 4096;
+    var buf: [4096]u8 = @splat(0);
+    var conv_buf: [4096]u8 = @splat(0);
 
-    var ite = try open("testdata/jisyo.utf8.withheader", &buf);
+    var ite = try open(std.testing.io, "testdata/jisyo.utf8.withheader", &buf);
     defer ite.deinit();
 
     while (try ite.next(&conv_buf)) |ent| {
@@ -114,9 +116,9 @@ test "skk utf-8 no header" {
         map.deinit();
     }
 
-    var buf = [_]u8{0} ** 4096;
-    var conv_buf = [_]u8{0} ** 4096;
-    var ite = try open("testdata/jisyo.utf8", &buf);
+    var buf: [4096]u8 = @splat(0);
+    var conv_buf: [4096]u8 = @splat(0);
+    var ite = try open(std.testing.io, "testdata/jisyo.utf8", &buf);
     defer ite.deinit();
 
     while (try ite.next(&conv_buf)) |ent| {
@@ -147,10 +149,10 @@ test "skk euc-jp no header" {
         map.deinit();
     }
 
-    var buf = [_]u8{0} ** 4096;
-    var conv_buf = [_]u8{0} ** 4096;
+    var buf: [4096]u8 = @splat(0);
+    var conv_buf: [4096]u8 = @splat(0);
 
-    var ite = try open("testdata/jisyo.euc-jp", &buf);
+    var ite = try open(std.testing.io, "testdata/jisyo.euc-jp", &buf);
     defer ite.deinit();
 
     while (try ite.next(&conv_buf)) |ent| {

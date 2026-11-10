@@ -13,18 +13,18 @@ pub const Handler = union(enum) {
     custom_protocol_handler: CustomProtocolHandler,
     exit_handler: ExitHandler,
 
-    pub fn handle(self: Handler, alloc: std.mem.Allocator, writer: *std.Io.Writer, line: []const u8) anyerror!void {
+    pub fn handle(self: Handler, io: std.Io, alloc: std.mem.Allocator, writer: *std.Io.Writer, line: []const u8) anyerror!void {
         switch (self) {
             inline else => |case| {
-                try case.handle(alloc, writer, line);
+                try case.handle(io, alloc, writer, line);
             },
         }
     }
 };
 
 pub const ExitHandler = struct {
-    fn handle(_: ExitHandler, _: std.mem.Allocator, _: *std.Io.Writer, _: []const u8) !void {
-        if (@import("builtin").mode == .Debug) {
+    fn handle(_: ExitHandler, _: std.Io, _: std.mem.Allocator, _: *std.Io.Writer, _: []const u8) !void {
+        if (@import("builtin").mode == .debug) {
             return error.Exit;
         } else unreachable;
     }
@@ -35,13 +35,13 @@ test "ExitHandler" {
     defer allocating.deinit();
 
     var h = ExitHandler{};
-    const err = h.handle(std.testing.allocator, &allocating.writer, "");
+    const err = h.handle(std.testing.io, std.testing.allocator, &allocating.writer, "");
 
     try std.testing.expectError(error.Exit, err);
 }
 
 pub const DisconnectHandler = struct {
-    fn handle(_: DisconnectHandler, _: std.mem.Allocator, _: *std.Io.Writer, _: []const u8) !void {
+    fn handle(_: DisconnectHandler, _: std.Io, _: std.mem.Allocator, _: *std.Io.Writer, _: []const u8) !void {
         return error.Disconnect;
     }
 };
@@ -51,7 +51,7 @@ test "DisconnectHandler" {
     defer allocating.deinit();
 
     var h = DisconnectHandler{};
-    const err = h.handle(std.testing.allocator, &allocating.writer, "");
+    const err = h.handle(std.testing.io, std.testing.allocator, &allocating.writer, "");
 
     try std.testing.expectError(error.Disconnect, err);
 }
@@ -67,7 +67,7 @@ pub const CandidateHandler = struct {
         };
     }
 
-    fn handle(self: CandidateHandler, alloc: std.mem.Allocator, writer: *std.Io.Writer, line: []const u8) !void {
+    fn handle(self: CandidateHandler, io: std.Io, alloc: std.mem.Allocator, writer: *std.Io.Writer, line: []const u8) !void {
         const cdd = self.dict_mgr.findCandidate(alloc, line);
         if (cdd.len > 0) {
             return try resp.generateResponse(writer, line, cdd);
@@ -78,7 +78,7 @@ pub const CandidateHandler = struct {
 
         log.debug("Fallback to google", .{});
 
-        const fallback = google_api.transliterateRequest(alloc, line) catch |err| {
+        const fallback = google_api.transliterateRequest(io, alloc, line) catch |err| {
             log.err("Failed to make request due to {}", .{err});
             return try resp.generateResponse(writer, line, "");
         };
@@ -91,7 +91,7 @@ pub const CandidateHandler = struct {
 test "CandidateHandler" {
     const alloc = std.testing.allocator;
 
-    var mgr = try dict.Manager.init(alloc);
+    var mgr = try dict.Manager.init(std.testing.io, alloc);
     defer mgr.deinit();
 
     const locations: []const dict.Location = &.{
@@ -104,20 +104,20 @@ test "CandidateHandler" {
 
     var h = CandidateHandler.init(&mgr, true);
 
-    try h.handle(alloc, &allocating.writer, "1024");
+    try h.handle(std.testing.io, alloc, &allocating.writer, "1024");
     try std.testing.expectEqualStrings("1/キロ/", allocating.written());
 
     allocating.clearRetainingCapacity();
-    try h.handle(alloc, &allocating.writer, "smile");
+    try h.handle(std.testing.io, alloc, &allocating.writer, "smile");
     try std.testing.expectEqualStrings("4smile ", allocating.written());
 
     allocating.clearRetainingCapacity();
-    try h.handle(alloc, &allocating.writer, "=1+1");
+    try h.handle(std.testing.io, alloc, &allocating.writer, "=1+1");
     try std.testing.expectEqualStrings("1/2/2=1+1/＝１＋１/", allocating.written());
 
     allocating.clearRetainingCapacity();
     h.use_google = false;
-    try h.handle(alloc, &allocating.writer, "=1+1");
+    try h.handle(std.testing.io, alloc, &allocating.writer, "=1+1");
     try std.testing.expectEqualStrings("4=1+1 ", allocating.written());
 }
 
@@ -130,7 +130,7 @@ pub const CompletionHandler = struct {
         };
     }
 
-    fn handle(self: CompletionHandler, alloc: std.mem.Allocator, writer: *std.Io.Writer, line: []const u8) !void {
+    fn handle(self: CompletionHandler, _: std.Io, alloc: std.mem.Allocator, writer: *std.Io.Writer, line: []const u8) !void {
         const cdd = try self.dict_mgr.findCompletion(alloc, line, 100);
         defer alloc.free(cdd);
 
@@ -141,7 +141,7 @@ pub const CompletionHandler = struct {
 test "CompletionHandler" {
     const alloc = std.testing.allocator;
 
-    var mgr = try dict.Manager.init(alloc);
+    var mgr = try dict.Manager.init(std.testing.io, alloc);
     defer mgr.deinit();
 
     const locations: []const dict.Location = &.{
@@ -154,11 +154,11 @@ test "CompletionHandler" {
 
     var h = CompletionHandler.init(&mgr);
 
-    try h.handle(alloc, &allocating.writer, "1");
+    try h.handle(std.testing.io, alloc, &allocating.writer, "1");
     try std.testing.expectEqualStrings("1/1024/1seg/", allocating.written());
 
     allocating.clearRetainingCapacity();
-    try h.handle(alloc, &allocating.writer, "smile");
+    try h.handle(std.testing.io, alloc, &allocating.writer, "smile");
     try std.testing.expectEqualStrings("4smile ", allocating.written());
 }
 
@@ -169,14 +169,14 @@ pub fn RawStringHandler(size: usize) type {
 
         pub fn init(str: []const u8) @This() {
             var self: @This() = .{
-                .str = [_]u8{0} ** size,
+                .str = @splat(0),
                 .len = str.len,
             };
             std.mem.copyBackwards(u8, &self.str, str);
             return self;
         }
 
-        fn handle(self: RawStringHandler(size), _: std.mem.Allocator, writer: *std.Io.Writer, _: []const u8) !void {
+        fn handle(self: RawStringHandler(size), _: std.Io, _: std.mem.Allocator, writer: *std.Io.Writer, _: []const u8) !void {
             _ = try writer.write(self.str[0..self.len]);
         }
     };
@@ -188,7 +188,7 @@ test "RawStringHandler" {
 
     var h = RawStringHandler(512).init("a string");
 
-    try h.handle(std.testing.allocator, &allocating.writer, "");
+    try h.handle(std.testing.io, std.testing.allocator, &allocating.writer, "");
     try std.testing.expectEqualStrings("a string", allocating.written());
 }
 
@@ -201,11 +201,11 @@ pub const CustomProtocolHandler = struct {
         };
     }
 
-    fn handle(self: CustomProtocolHandler, alloc: std.mem.Allocator, _: *std.Io.Writer, req: []const u8) !void {
+    fn handle(self: CustomProtocolHandler, io: std.Io, alloc: std.mem.Allocator, _: *std.Io.Writer, req: []const u8) !void {
         if (std.mem.eql(u8, req, "reload")) {
             log.info("Reload", .{});
 
-            self.reload(alloc) catch |err| {
+            self.reload(io, alloc) catch |err| {
                 log.err("Failed to reload dictionaries due to {}", .{err});
             };
             return;
@@ -214,8 +214,8 @@ pub const CustomProtocolHandler = struct {
         log.err("Not implemented command {s}", .{req});
     }
 
-    fn reload(self: CustomProtocolHandler, alloc: std.mem.Allocator) !void {
-        const cfg = try config.loadConfig(alloc);
+    fn reload(self: CustomProtocolHandler, io: std.Io, alloc: std.mem.Allocator) !void {
+        const cfg = try config.loadConfig(io, alloc);
         defer cfg.deinit(alloc);
 
         try self.dict_mgr.reloadLocations(cfg.dictionaries, cfg.dictionary_directory);
